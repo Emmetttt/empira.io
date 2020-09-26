@@ -1,7 +1,5 @@
 function onUpdateDatabase()
-	print("> Updating database to version 26 (Better premium time handling)")
-	db.query("ALTER TABLE `accounts` DROP COLUMN `lastday`")
-	db.query("ALTER TABLE `accounts` CHANGE COLUMN `premdays` `premium_ends_at` int unsigned NOT NULL DEFAULT 0");
-	db.query("UPDATE `accounts` SET `premium_ends_at` = `premium_ends_at` * 86400 + " .. os.time())
+	print("> Updating database to version 27 (track player stats)")
+	db.query("ALTER TABLE `players` ADD COLUMN `player_kills` int(11) unsigned NOT NULL DEFAULT 0, ADD COLUMN `bot_kills` int(11) unsigned NOT NULL DEFAULT 0, ADD COLUMN `wins` int(11) unsigned NOT NULL DEFAULT 0, ADD COLUMN `games` int(11) unsigned NOT NULL DEFAULT 0")
 	return true
 end

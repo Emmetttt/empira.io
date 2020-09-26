@@ -64,12 +64,30 @@ Monster::Monster(MonsterType* mType) :
 			std::cout << "[Warning - Monster::Monster] Unknown event name: " << scriptName << std::endl;
 		}
 	}
+
+	if (mType->info.isAi){
+		loadAi();
+	}
 }
 
 Monster::~Monster()
 {
 	clearTargetList();
 	clearFriendList();
+}
+
+void Monster::loadAi()
+{
+	mana = mType->info.mana;
+	manaMax = mType->info.manaMax;
+	ai = true;
+	g_game.addToTeam(this);
+	setMasterPos(g_game.getCurrentTown(getGuild()->getId())->getTemplePosition());
+	g_game.placeCreature(this, getMasterPos(), false, true);
+	// register ai events
+	if (!registerCreatureEvent("PlayerDeath")) {
+		std::cout << "[Warning - Monster::Monster] Unknown event name: playerdeath" << std::endl;
+	}
 }
 
 void Monster::addList()
@@ -218,7 +236,7 @@ void Monster::onRemoveCreature(Creature* creature, bool isLogout)
 			spawn->startSpawnCheck();
 		}
 
-		setIdle(true);
+		setIdle(false);
 	} else {
 		onCreatureLeave(creature);
 	}
@@ -478,7 +496,10 @@ bool Monster::isFriend(const Creature* creature) const
 		if (tmpPlayer && (tmpPlayer == getMaster() || masterPlayer->isPartner(tmpPlayer))) {
 			return true;
 		}
-	} else if (creature->getMonster() && !creature->isSummon()) {
+	}
+	Guild* creatureGuild = creature->getGuild();
+	Guild* thisGuild = getGuild();
+	if (thisGuild && creatureGuild && thisGuild->getId() == creatureGuild->getId()){
 		return true;
 	}
 
@@ -491,9 +512,10 @@ bool Monster::isOpponent(const Creature* creature) const
 		if (creature != getMaster()) {
 			return true;
 		}
-	} else {
-		if ((creature->getPlayer() && !creature->getPlayer()->hasFlag(PlayerFlag_IgnoredByMonsters)) ||
-		        (creature->getMaster() && creature->getMaster()->getPlayer())) {
+	} else {	
+		Guild* creatureGuild = creature->getGuild();
+		Guild* thisGuild = getGuild();
+		if (thisGuild && creatureGuild && thisGuild->getId() != creatureGuild->getId()){
 			return true;
 		}
 	}
@@ -531,6 +553,10 @@ void Monster::onCreatureLeave(Creature* creature)
 
 bool Monster::searchTarget(TargetSearchType_t searchType /*= TARGETSEARCH_DEFAULT*/)
 {
+	if (isAi()){
+		searchType = TARGETSEARCH_AI;
+	}
+
 	std::list<Creature*> resultList;
 	const Position& myPos = getPosition();
 
@@ -581,6 +607,50 @@ bool Monster::searchTarget(TargetSearchType_t searchType /*= TARGETSEARCH_DEFAUL
 			if (target && selectTarget(target)) {
 				return true;
 			}
+			break;
+		}
+		
+		case TARGETSEARCH_AI:{
+			Creature* target = nullptr;
+			if (!resultList.empty()) {
+				auto it = resultList.begin();
+				target = *it;
+
+				if (++it != resultList.end()) {
+					// ORDER OF PRECEDENCE
+					// 1. Highest streak
+					// 2. Lowest health percentage 
+					// 3. Prefer to attack closest creature
+					const Position& targetPosition = target->getPosition();
+					int32_t minRange = Position::getDistanceX(myPos, targetPosition) + Position::getDistanceY(myPos, targetPosition);
+					int32_t maxTargetStreak = target->getStreak();
+					int32_t minHealthPercentage = target->getHealth() / target->getMaxHealth();
+
+					do {
+						const Position& pos = (*it)->getPosition();
+
+						int32_t distance = Position::getDistanceX(myPos, pos) + Position::getDistanceY(myPos, pos);
+						const int32_t targetStreak = target->getStreak();
+						const int32_t healthPercentage = target->getHealth() / target->getMaxHealth();
+
+
+						if (targetStreak > maxTargetStreak 
+							|| targetStreak == maxTargetStreak && healthPercentage < minHealthPercentage
+							|| targetStreak == maxTargetStreak && healthPercentage == minHealthPercentage && distance < minRange
+						) {
+							target = *it;
+							maxTargetStreak = targetStreak;
+							minHealthPercentage = healthPercentage;
+							minRange = distance;
+						}
+					} while (++it != resultList.end());
+				}
+			}
+
+			if (target && selectTarget(target)) {
+				return true;
+			}
+
 			break;
 		}
 
@@ -713,6 +783,10 @@ void Monster::updateIdleStatus()
 		idle = std::find_if(conditions.begin(), conditions.end(), [](Condition* condition) {
 			return condition->isAggressive();
 		}) == conditions.end();
+	}
+
+	if (isAi()){
+		idle = false;
 	}
 
 	setIdle(idle);
@@ -908,47 +982,45 @@ bool Monster::canUseSpell(const Position& pos, const Position& targetPos,
 
 void Monster::onThinkTarget(uint32_t interval)
 {
-	if (!isSummon()) {
-		if (mType->info.changeTargetSpeed != 0) {
-			bool canChangeTarget = true;
+	if (isSummon() || mType->info.changeTargetSpeed == 0) return;
+
+	bool canChangeTarget = true;
+
+	if (challengeFocusDuration > 0) {
+		challengeFocusDuration -= interval;
+
+		if (challengeFocusDuration <= 0) {
+			challengeFocusDuration = 0;
+		}
+	}
+
+	if (targetChangeCooldown > 0) {
+		targetChangeCooldown -= interval;
+
+		if (targetChangeCooldown <= 0) {
+			targetChangeCooldown = 0;
+			targetChangeTicks = mType->info.changeTargetSpeed;
+		} else {
+			canChangeTarget = false;
+		}
+	}
+
+	if (canChangeTarget) {
+		targetChangeTicks += interval;
+
+		if (targetChangeTicks >= mType->info.changeTargetSpeed) {
+			targetChangeTicks = 0;
+			targetChangeCooldown = mType->info.changeTargetSpeed;
 
 			if (challengeFocusDuration > 0) {
-				challengeFocusDuration -= interval;
-
-				if (challengeFocusDuration <= 0) {
-					challengeFocusDuration = 0;
-				}
+				challengeFocusDuration = 0;
 			}
 
-			if (targetChangeCooldown > 0) {
-				targetChangeCooldown -= interval;
-
-				if (targetChangeCooldown <= 0) {
-					targetChangeCooldown = 0;
-					targetChangeTicks = mType->info.changeTargetSpeed;
+			if (mType->info.changeTargetChance >= uniform_random(1, 100)) {
+				if (mType->info.targetDistance <= 1) {
+					searchTarget(TARGETSEARCH_RANDOM);
 				} else {
-					canChangeTarget = false;
-				}
-			}
-
-			if (canChangeTarget) {
-				targetChangeTicks += interval;
-
-				if (targetChangeTicks >= mType->info.changeTargetSpeed) {
-					targetChangeTicks = 0;
-					targetChangeCooldown = mType->info.changeTargetSpeed;
-
-					if (challengeFocusDuration > 0) {
-						challengeFocusDuration = 0;
-					}
-
-					if (mType->info.changeTargetChance >= uniform_random(1, 100)) {
-						if (mType->info.targetDistance <= 1) {
-							searchTarget(TARGETSEARCH_RANDOM);
-						} else {
-							searchTarget(TARGETSEARCH_NEAREST);
-						}
-					}
+					searchTarget(TARGETSEARCH_NEAREST);
 				}
 			}
 		}
@@ -960,21 +1032,65 @@ void Monster::onThinkDefense(uint32_t interval)
 	bool resetTicks = true;
 	defenseTicks += interval;
 
-	for (const spellBlock_t& spellBlock : mType->info.defenseSpells) {
-		if (spellBlock.speed > defenseTicks) {
-			resetTicks = false;
-			continue;
-		}
+	if (isAi())
+	{
+		// hierarachy:
+		// 1. if we need healing, heal
+		// 2. if we're a druid and our team member needs healing, heal the,
+		// 3. if we need mana, pot baby
+		// 4. if we're not hasted, haste
+		// 5. if we're a mage and not mana shielded, mana shield
 
-		if (defenseTicks % spellBlock.speed >= interval) {
-			//already used this spell for this round
-			continue;
-		}
+		// 1. check for healing
+		for (const spellBlock_t& spellBlock : mType->info.defenseSpells) {
+			if (spellBlock.speed > defenseTicks) {
+				resetTicks = false;
+				continue;
+			}
+			if (defenseTicks % spellBlock.speed >= interval) {
+				//already used this spell for this round
+				continue;
+			}
 
-		if ((spellBlock.chance >= static_cast<uint32_t>(uniform_random(1, 100)))) {
-			minCombatValue = spellBlock.minCombatValue;
-			maxCombatValue = spellBlock.maxCombatValue;
-			spellBlock.spell->castSpell(this, this);
+			float currentHealthPercent = ((float)getHealth() / (float)getMaxHealth()) * 100;
+			if (spellBlock.isHealing && spellBlock.healthPercent >= currentHealthPercent && healCount > 0) {
+				minCombatValue = spellBlock.minCombatValue;
+				maxCombatValue = spellBlock.maxCombatValue;
+				spellBlock.spell->castSpell(this, this);
+				healCount--;
+			}
+			else if (spellBlock.isManaShield && getCondition(CONDITION_MANASHIELD) == nullptr)
+			{
+				minCombatValue = spellBlock.minCombatValue;
+				maxCombatValue = spellBlock.maxCombatValue;
+				spellBlock.spell->castSpell(this, this);
+			}
+			else if (spellBlock.isHaste && getSpeed() == getBaseSpeed())
+			{
+				minCombatValue = spellBlock.minCombatValue;
+				maxCombatValue = spellBlock.maxCombatValue;
+				spellBlock.spell->castSpell(this, this);
+			}
+		}
+	}
+	else
+	{
+		for (const spellBlock_t& spellBlock : mType->info.defenseSpells) {
+			if (spellBlock.speed > defenseTicks) {
+				resetTicks = false;
+				continue;
+			}
+
+			if (defenseTicks % spellBlock.speed >= interval) {
+				//already used this spell for this round
+				continue;
+			}
+
+			if ((spellBlock.chance >= static_cast<uint32_t>(uniform_random(1, 100)))) {
+				minCombatValue = spellBlock.minCombatValue;
+				maxCombatValue = spellBlock.maxCombatValue;
+				spellBlock.spell->castSpell(this, this);
+			}
 		}
 	}
 
@@ -1192,14 +1308,14 @@ void Monster::pushCreatures(Tile* tile)
 
 bool Monster::getNextStep(Direction& direction, uint32_t& flags)
 {
-	if (!walkingToSpawn && (isIdle || getHealth() <= 0)) {
+	if (getHealth() <= 0) {
 		//we don't have anyone watching, might as well stop walking
 		eventWalk = 0;
 		return false;
 	}
 
 	bool result = false;
-	if (!walkingToSpawn && (!followCreature || !hasFollowPath) && (!isSummon() || !isMasterInRange)) {
+	if (!walkingToSpawn && (!followCreature || !hasFollowPath) && (!isSummon() || !isMasterInRange) && !isAi()) {
 		if (getTimeSinceLastMove() >= 1000) {
 			randomStepping = true;
 			//choose a random direction
@@ -1223,6 +1339,11 @@ bool Monster::getNextStep(Direction& direction, uint32_t& flags)
 					result = getDanceStep(getPosition(), direction);
 				}
 			}
+		}
+	} else if (isAi()) {
+		result = Creature::getNextStep(direction, flags);
+		if (!result) {
+			result = g_game.map.getNextDirection(direction, getPosition());
 		}
 	}
 
@@ -1873,6 +1994,9 @@ void Monster::death(Creature*)
 	clearTargetList();
 	clearFriendList();
 	onIdleStatus();
+	getGuild()->removeMember(this);
+	g_game.removeCreature(this, false);
+	g_game.prepopulateTeams();
 }
 
 Item* Monster::getCorpse(Creature* lastHitCreature, Creature* mostDamageCreature)

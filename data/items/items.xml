@@ -3389,8 +3389,8 @@
 	<item id="2408" article="a" name="warlord sword">
 		<attribute key="description" value="Strong powers flow in this magic sword." />
 		<attribute key="weight" value="6400" />
-		<attribute key="defense" value="38" />
-		<attribute key="attack" value="53" />
+		<attribute key="defense" value="50" />
+		<attribute key="attack" value="110" />
 		<attribute key="weaponType" value="sword" />
 		<attribute key="slotType" value="two-handed" />
 	</item>

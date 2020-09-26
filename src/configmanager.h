@@ -136,6 +136,7 @@ class ConfigManager
 			DEPOT_FREE_LIMIT,
 			DEPOT_PREMIUM_LIMIT,
 			TDM_KILLS_TO_WIN,
+			NUMBER_BOTS_PER_TEAM,
 
 			LAST_INTEGER_CONFIG /* this must be the last one */
 		};

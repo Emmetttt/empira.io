@@ -161,6 +161,17 @@ bool Monsters::deserializeSpell(const pugi::xml_node& node, spellBlock_t& sb, co
 		}
 	}
 
+	if ((attr = node.attribute("healthPercent"))) {
+		sb.healthPercent = pugi::cast<uint32_t>(attr.value());
+	}
+
+	if ((attr = node.attribute("manaPercent"))) {
+		sb.manaPercent = pugi::cast<uint32_t>(attr.value());
+	}
+
+
+
+
 	if (auto spell = g_spells->getSpellByName(name)) {
 		sb.spell = spell;
 		return true;
@@ -343,6 +354,20 @@ bool Monsters::deserializeSpell(const pugi::xml_node& node, spellBlock_t& sb, co
 		} else if (tmpName == "healing") {
 			combat->setParam(COMBAT_PARAM_TYPE, COMBAT_HEALING);
 			combat->setParam(COMBAT_PARAM_AGGRESSIVE, 0);
+		} else if (tmpName == "manashield") {
+			ConditionType_t conditionType = CONDITION_MANASHIELD;
+			int32_t duration = 10000;
+
+			if ((attr = node.attribute("duration"))) {
+				duration = pugi::cast<int32_t>(attr.value());
+			}
+			ConditionSpeed* condition = static_cast<ConditionSpeed*>(Condition::createCondition(CONDITIONID_COMBAT, conditionType, duration, 0));
+			condition->setFormulaVars(1000.0, 0, 1000.0, 0);
+			combat->addCondition(condition);
+
+			combat->setParam(COMBAT_PARAM_TYPE, COMBAT_HEALING);
+			combat->setParam(COMBAT_PARAM_AGGRESSIVE, 0);
+			sb.isManaShield = true;
 		} else if (tmpName == "speed") {
 			int32_t minSpeedChange = 0;
 			int32_t maxSpeedChange = 0;
@@ -387,6 +412,7 @@ bool Monsters::deserializeSpell(const pugi::xml_node& node, spellBlock_t& sb, co
 			ConditionSpeed* condition = static_cast<ConditionSpeed*>(Condition::createCondition(CONDITIONID_COMBAT, conditionType, duration, 0));
 			condition->setFormulaVars(minSpeedChange / 1000.0, 0, maxSpeedChange / 1000.0, 0);
 			combat->addCondition(condition);
+			sb.isHaste = true;
 		} else if (tmpName == "outfit") {
 			int32_t duration = 10000;
 
@@ -569,6 +595,12 @@ bool Monsters::deserializeSpell(MonsterSpell* spell, spellBlock_t& sb, const std
 
 	sb.minCombatValue = spell->minCombatValue;
 	sb.maxCombatValue = spell->maxCombatValue;
+	sb.healthPercent = spell->healthPercent;
+	sb.manaPercent = spell->manaPercent;
+	sb.isHealing = spell->isHealing;
+	sb.isHaste = spell->isHaste;
+	sb.isManaShield = spell->isManaShield;
+
 	if (std::abs(sb.minCombatValue) > std::abs(sb.maxCombatValue)) {
 		int32_t value = sb.maxCombatValue;
 		sb.maxCombatValue = sb.minCombatValue;
@@ -895,6 +927,16 @@ MonsterType* Monsters::loadMonster(const std::string& file, const std::string& m
 		}
 	}
 
+	if ((node = monsterNode.child("mana"))) {
+		if ((attr = node.attribute("now"))) {
+			mType->info.mana = pugi::cast<int32_t>(attr.value());
+		}
+
+		if ((attr = node.attribute("max"))) {
+			mType->info.manaMax = pugi::cast<int32_t>(attr.value());
+		}
+	}
+
 	if ((node = monsterNode.child("flags"))) {
 		for (auto flagNode : node.children()) {
 			attr = flagNode.first_attribute();
@@ -950,6 +992,8 @@ MonsterType* Monsters::loadMonster(const std::string& file, const std::string& m
 				mType->info.canWalkOnFire = attr.as_bool();
 			} else if (strcasecmp(attrName, "canwalkonpoison") == 0) {
 				mType->info.canWalkOnPoison = attr.as_bool();
+			} else if (strcasecmp(attrName, "isAi") == 0) {
+				mType->info.isAi = attr.as_bool();
 			} else {
 				std::cout << "[Warning - Monsters::loadMonster] Unknown flag attribute: " << attrName << ". " << file << std::endl;
 			}

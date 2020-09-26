@@ -66,10 +66,11 @@ enum GameState_t {
 };
 
 enum CurrentMap_t {
-	CURRENT_MAP_VENORE,
+	// CURRENT_MAP_VENORE,
 	CURRENT_MAP_THAIS,
 	CURRENT_MAP_EDRON,
-	CURRENT_MAP_FIBULA
+	CURRENT_MAP_FIBULA,
+	CURRENT_MAP_ANK
 };
 
 enum GameMode_t {
@@ -433,7 +434,7 @@ class Game
 		void internalCreatureChangeVisible(Creature* creature, bool visible);
 		void changeLight(const Creature* creature);
 		void updateCreatureSkull(const Creature* creature);
-		void updatePlayerShield(Player* player);
+		void updatePlayerShield(Creature* player);
 		void updateCreatureWalkthrough(const Creature* creature);
 
 		GameState_t getGameState() const;
@@ -450,6 +451,9 @@ class Game
 			return currentMap;
 		}
 		Town* getCurrentTown(uint32_t guildId);
+		Position getNextChokePoint();
+		void declareLeaderboard();
+		void rotateChokePoints();
 		void setCurrentMap(CurrentMap_t newMap){
 			currentMap = newMap;
 		}
@@ -510,7 +514,9 @@ class Game
 		void addMonster(Monster* monster);
 		void removeMonster(Monster* monster);
 
-		Guild* getGuild(uint32_t id) const;
+		Guild* getGuild(uint32_t id);
+		void prepopulateTeams();
+		void addToTeam(Creature* creature);
 		void addGuild(Guild* guild);
 		void removeGuild(uint32_t guildId);
 

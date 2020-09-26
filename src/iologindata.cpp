@@ -199,13 +199,17 @@ bool IOLoginData::preloadPlayer(Player* player, const std::string& name)
 bool IOLoginData::loadPlayerById(Player* player, uint32_t id)
 {
 	Database& db = Database::getInstance();
-	return loadPlayer(player, db.storeQuery(fmt::format("SELECT `id`, `name`, `account_id`, `group_id`, `sex`, `vocation`, `experience`, `level`, `maglevel`, `health`, `healthmax`, `blessings`, `mana`, `manamax`, `manaspent`, `soul`, `lookbody`, `lookfeet`, `lookhead`, `looklegs`, `looktype`, `lookaddons`, `posx`, `posy`, `posz`, `cap`, `lastlogin`, `lastlogout`, `lastip`, `conditions`, `skulltime`, `skull`, `town_id`, `balance`, `stamina`, `skill_fist`, `skill_fist_tries`, `skill_club`, `skill_club_tries`, `skill_sword`, `skill_sword_tries`, `skill_axe`, `skill_axe_tries`, `skill_dist`, `skill_dist_tries`, `skill_shielding`, `skill_shielding_tries`, `skill_fishing`, `skill_fishing_tries`, `direction` FROM `players` WHERE `id` = {:d}", id)));
+	std::ostringstream query;
+	query << "SELECT `id`, `name`, `account_id`, `group_id`, `sex`, `vocation`, `experience`, `level`, `maglevel`, `health`, `healthmax`, `blessings`, `mana`, `manamax`, `manaspent`, `soul`, `lookbody`, `lookfeet`, `lookhead`, `looklegs`, `looktype`, `lookaddons`, `posx`, `posy`, `posz`, `cap`, `lastlogin`, `lastlogout`, `lastip`, `conditions`, `skulltime`, `skull`, `town_id`, `balance`, `offlinetraining_time`, `offlinetraining_skill`, `stamina`, `skill_fist`, `skill_fist_tries`, `skill_club`, `skill_club_tries`, `skill_sword`, `skill_sword_tries`, `skill_axe`, `skill_axe_tries`, `skill_dist`, `skill_dist_tries`, `skill_shielding`, `skill_shielding_tries`, `skill_fishing`, `skill_fishing_tries`, `direction`, (SELECT `player_name` FROM `accounts` WHERE `accounts`.`id` = `account_id`) AS `player_name` FROM `players` WHERE `id` = " << id;
+	return loadPlayer(player, db.storeQuery(query.str()));
 }
 
 bool IOLoginData::loadPlayerByName(Player* player, const std::string& name)
 {
 	Database& db = Database::getInstance();
-	return loadPlayer(player, db.storeQuery(fmt::format("SELECT `id`, `name`, `account_id`, `group_id`, `sex`, `vocation`, `experience`, `level`, `maglevel`, `health`, `healthmax`, `blessings`, `mana`, `manamax`, `manaspent`, `soul`, `lookbody`, `lookfeet`, `lookhead`, `looklegs`, `looktype`, `lookaddons`, `posx`, `posy`, `posz`, `cap`, `lastlogin`, `lastlogout`, `lastip`, `conditions`, `skulltime`, `skull`, `town_id`, `balance`, `stamina`, `skill_fist`, `skill_fist_tries`, `skill_club`, `skill_club_tries`, `skill_sword`, `skill_sword_tries`, `skill_axe`, `skill_axe_tries`, `skill_dist`, `skill_dist_tries`, `skill_shielding`, `skill_shielding_tries`, `skill_fishing`, `skill_fishing_tries`, `direction` FROM `players` WHERE `name` = {:s}", db.escapeString(name))));
+	std::ostringstream query;
+	query << "SELECT `id`, `name`, `account_id`, `group_id`, `sex`, `vocation`, `experience`, `level`, `maglevel`, `health`, `healthmax`, `blessings`, `mana`, `manamax`, `manaspent`, `soul`, `lookbody`, `lookfeet`, `lookhead`, `looklegs`, `looktype`, `lookaddons`, `posx`, `posy`, `posz`, `cap`, `lastlogin`, `lastlogout`, `lastip`, `conditions`, `skulltime`, `skull`, `town_id`, `balance`, `offlinetraining_time`, `offlinetraining_skill`, `stamina`, `skill_fist`, `skill_fist_tries`, `skill_club`, `skill_club_tries`, `skill_sword`, `skill_sword_tries`, `skill_axe`, `skill_axe_tries`, `skill_dist`, `skill_dist_tries`, `skill_shielding`, `skill_shielding_tries`, `skill_fishing`, `skill_fishing_tries`, `direction`, (SELECT `player_name` FROM `accounts` WHERE `accounts`.`id` = `account_id`) AS `player_name` FROM `players` WHERE `name` = " << db.escapeString(name);
+	return loadPlayer(player, db.storeQuery(query.str()));
 }
 
 bool IOLoginData::loadPlayer(Player* player, DBResult_ptr result)
@@ -226,6 +230,11 @@ bool IOLoginData::loadPlayer(Player* player, DBResult_ptr result)
 	player->accountType = acc.accountType;
 
 	player->premiumEndsAt = acc.premiumEndsAt;
+	std::string tempName = result->getString("player_name");
+	if (player->isPremium() && !player->isDefaultCharacter() && !tempName.empty() && tempName.length() > 0) {
+		std::cout << "Setting name " << player->name << " to " << tempName << std::endl;
+		player->name = tempName;
+	}
 
 	Group* group = g_game.groups.getGroup(result->getNumber<uint16_t>("group_id"));
 	if (!group) {
@@ -341,15 +350,6 @@ bool IOLoginData::loadPlayer(Player* player, DBResult_ptr result)
 		player->guildNick = result->getString("nick");
 
 		Guild* guild = g_game.getGuild(guildId);
-		if (!guild) {
-			guild = IOGuild::loadGuild(guildId);
-			if (guild) {
-				g_game.addGuild(guild);
-			} else {
-				std::cout << "[Warning - IOLoginData::loadPlayer] " << player->name << " has Guild ID " << guildId << " which doesn't exist" << std::endl;
-			}
-		}
-
 		if (guild) {
 			player->guild = guild;
 			GuildRank_ptr rank = guild->getRankById(playerRankId);
@@ -374,54 +374,9 @@ bool IOLoginData::loadPlayer(Player* player, DBResult_ptr result)
 		}
 	}
 	else {
-		uint32_t guildId1 = 1;
-		Guild* guild1 = g_game.getGuild(guildId1);
-		if (!guild1) {
-			guild1 = IOGuild::loadGuild(guildId1);
-			if (guild1) {
-				g_game.addGuild(guild1);
-			} else {
-				std::cout << "[Warning - IOLoginData::loadPlayer] " << player->name << " has Guild ID " << guildId1 << " which doesn't exist" << std::endl;
-			}
-		}
-
-		uint32_t guildId2 = 2;
-		Guild* guild2 = g_game.getGuild(guildId2);
-		if (!guild2) {
-			guild2 = IOGuild::loadGuild(guildId2);
-			if (guild2) {
-				g_game.addGuild(guild2);
-			} else {
-				std::cout << "[Warning - IOLoginData::loadPlayer] " << player->name << " has Guild ID " << guildId2 << " which doesn't exist" << std::endl;
-			}
-		}
-
-		if (guild1->getMembersOnlineCount() > guild2->getMembersOnlineCount()) {
-			player->guild = guild2;
-			player->guildRank = guild2->getRankByName("a Member");
-			guild2->addMember(player);
-			IOGuild::getWarList(guildId2, player->guildWarVector);
-			player->currentOutfit.lookHead = 114;
-			player->currentOutfit.lookBody = 114;
-			player->currentOutfit.lookLegs = 114;
-			player->currentOutfit.lookFeet = 114;
-			Town* town = g_game.getCurrentTown(guildId2);
-			player->town = town;
-			player->loginPosition = player->getTemplePosition();
-		}
-		else {
-			player->guild = guild1;
-			player->guildRank = guild1->getRankByName("a Member");
-			guild1->addMember(player);
-			IOGuild::getWarList(guildId1, player->guildWarVector);
-			player->currentOutfit.lookHead = 0;
-			player->currentOutfit.lookBody = 0;
-			player->currentOutfit.lookLegs = 0;
-			player->currentOutfit.lookFeet = 0;
-			Town* town = g_game.getCurrentTown(guildId1);
-			player->town = town;
-			player->loginPosition = player->getTemplePosition();
-		}
+		g_game.addToTeam(player);
+		player->town = g_game.getCurrentTown(player->getGuild()->getId());
+		player->loginPosition = player->getTemplePosition();
 	}
 
 	if ((result = db.storeQuery(fmt::format("SELECT `player_id`, `name` FROM `player_spells` WHERE `player_id` = {:d}", player->getGUID())))) {
@@ -595,10 +550,6 @@ bool IOLoginData::saveItems(const Player* player, const ItemBlockList& itemList,
 
 bool IOLoginData::savePlayer(Player* player)
 {
-	if (player->getHealth() <= 0) {
-		player->changeHealth(1);
-	}
-
 	Database& db = Database::getInstance();
 
 	DBResult_ptr result = db.storeQuery(fmt::format("SELECT `save` FROM `players` WHERE `id` = {:d}", player->getGUID()));
@@ -625,32 +576,12 @@ bool IOLoginData::savePlayer(Player* player)
 	//First, an UPDATE query to write the player itself
 	std::ostringstream query;
 	query << "UPDATE `players` SET ";
-	query << "`level` = " << player->level << ',';
-	query << "`group_id` = " << player->group->id << ',';
-	query << "`vocation` = " << player->getVocationId() << ',';
-	query << "`health` = " << player->health << ',';
-	query << "`healthmax` = " << player->healthMax << ',';
-	query << "`experience` = " << player->experience << ',';
 	query << "`lookbody` = " << static_cast<uint32_t>(player->defaultOutfit.lookBody) << ',';
 	query << "`lookfeet` = " << static_cast<uint32_t>(player->defaultOutfit.lookFeet) << ',';
 	query << "`lookhead` = " << static_cast<uint32_t>(player->defaultOutfit.lookHead) << ',';
 	query << "`looklegs` = " << static_cast<uint32_t>(player->defaultOutfit.lookLegs) << ',';
 	query << "`looktype` = " << player->defaultOutfit.lookType << ',';
 	query << "`lookaddons` = " << static_cast<uint32_t>(player->defaultOutfit.lookAddons) << ',';
-	query << "`maglevel` = " << player->magLevel << ',';
-	query << "`mana` = " << player->mana << ',';
-	query << "`manamax` = " << player->manaMax << ',';
-	query << "`manaspent` = " << player->manaSpent << ',';
-	query << "`soul` = " << static_cast<uint16_t>(player->soul) << ',';
-	query << "`town_id` = " << player->town->getID() << ',';
-
-	const Position& loginPosition = player->getLoginPosition();
-	query << "`posx` = " << loginPosition.getX() << ',';
-	query << "`posy` = " << loginPosition.getY() << ',';
-	query << "`posz` = " << loginPosition.getZ() << ',';
-
-	query << "`cap` = " << (player->capacity / 100) << ',';
-	query << "`sex` = " << static_cast<uint16_t>(player->sex) << ',';
 
 	if (player->lastLoginSaved != 0) {
 		query << "`lastlogin` = " << player->lastLoginSaved << ',';
@@ -660,49 +591,21 @@ bool IOLoginData::savePlayer(Player* player)
 		query << "`lastip` = " << player->lastIP << ',';
 	}
 
-	query << "`conditions` = " << db.escapeBlob(conditions, conditionsSize) << ',';
-
-	if (g_game.getWorldType() != WORLD_TYPE_PVP_ENFORCED) {
-		int64_t skullTime = 0;
-
-		if (player->skullTicks > 0) {
-			skullTime = time(nullptr) + player->skullTicks;
-		}
-		query << "`skulltime` = " << skullTime << ',';
-
-		Skulls_t skull = SKULL_NONE;
-		if (player->skull == SKULL_RED) {
-			skull = SKULL_RED;
-		} else if (player->skull == SKULL_BLACK) {
-			skull = SKULL_BLACK;
-		}
-		query << "`skull` = " << static_cast<int64_t>(skull) << ',';
-	}
-
 	query << "`lastlogout` = " << player->getLastLogout() << ',';
-	query << "`balance` = " << player->bankBalance << ',';
-	query << "`stamina` = " << player->getStaminaMinutes() << ',';
+	query << "`kills` = kills + " << static_cast<uint32_t>(player->getKills()) << ',';
+	query << "`deaths` = deaths + " << static_cast<uint32_t>(player->getDeaths()) << ',';
+	query << "`player_kills` = player_kills + " << static_cast<uint32_t>(player->getPlayerKills()) << ',';
+	query << "`bot_kills` = bot_kills + " << static_cast<uint32_t>(player->getBotKills()) << ',';
+	query << "`games` = games + 1,";
 
-	query << "`skill_fist` = " << player->skills[SKILL_FIST].level << ',';
-	query << "`skill_fist_tries` = " << player->skills[SKILL_FIST].tries << ',';
-	query << "`skill_club` = " << player->skills[SKILL_CLUB].level << ',';
-	query << "`skill_club_tries` = " << player->skills[SKILL_CLUB].tries << ',';
-	query << "`skill_sword` = " << player->skills[SKILL_SWORD].level << ',';
-	query << "`skill_sword_tries` = " << player->skills[SKILL_SWORD].tries << ',';
-	query << "`skill_axe` = " << player->skills[SKILL_AXE].level << ',';
-	query << "`skill_axe_tries` = " << player->skills[SKILL_AXE].tries << ',';
-	query << "`skill_dist` = " << player->skills[SKILL_DISTANCE].level << ',';
-	query << "`skill_dist_tries` = " << player->skills[SKILL_DISTANCE].tries << ',';
-	query << "`skill_shielding` = " << player->skills[SKILL_SHIELD].level << ',';
-	query << "`skill_shielding_tries` = " << player->skills[SKILL_SHIELD].tries << ',';
-	query << "`skill_fishing` = " << player->skills[SKILL_FISHING].level << ',';
-	query << "`skill_fishing_tries` = " << player->skills[SKILL_FISHING].tries << ',';
-	query << "`direction` = " << static_cast<uint16_t> (player->getDirection()) << ',';
+	if (player->isWinner()){
+		query << "`wins` = wins + 1,";
+	}
+	query << "`longest_streak` = GREATEST(`longest_streak`, " << static_cast<uint32_t>(player->getLongestStreak()) << ')';
 
 	if (!player->isOffline()) {
-		query << "`onlinetime` = `onlinetime` + " << (time(nullptr) - player->lastLoginSaved) << ',';
+		query << ",`onlinetime` = `onlinetime` + " << (time(nullptr) - player->lastLoginSaved);
 	}
-	query << "`blessings` = " << player->blessings.to_ulong();
 	query << " WHERE `id` = " << player->getGUID();
 
 	DBTransaction transaction;
@@ -711,109 +614,6 @@ bool IOLoginData::savePlayer(Player* player)
 	}
 
 	if (!db.executeQuery(query.str())) {
-		return false;
-	}
-
-	// learned spells
-	if (!db.executeQuery(fmt::format("DELETE FROM `player_spells` WHERE `player_id` = {:d}", player->getGUID()))) {
-		return false;
-	}
-
-	DBInsert spellsQuery("INSERT INTO `player_spells` (`player_id`, `name` ) VALUES ");
-	for (const std::string& spellName : player->learnedInstantSpellList) {
-		if (!spellsQuery.addRow(fmt::format("{:d}, {:s}", player->getGUID(), db.escapeString(spellName)))) {
-			return false;
-		}
-	}
-
-	if (!spellsQuery.execute()) {
-		return false;
-	}
-
-	//item saving
-	if (!db.executeQuery(fmt::format("DELETE FROM `player_items` WHERE `player_id` = {:d}", player->getGUID()))) {
-		return false;
-	}
-
-	DBInsert itemsQuery("INSERT INTO `player_items` (`player_id`, `pid`, `sid`, `itemtype`, `count`, `attributes`) VALUES ");
-
-	ItemBlockList itemList;
-	for (int32_t slotId = CONST_SLOT_FIRST; slotId <= CONST_SLOT_LAST; ++slotId) {
-		Item* item = player->inventory[slotId];
-		if (item) {
-			itemList.emplace_back(slotId, item);
-		}
-	}
-
-	if (!saveItems(player, itemList, itemsQuery, propWriteStream)) {
-		return false;
-	}
-
-	//save depot locker items
-	bool needsSave = false;
-
-	for (const auto& it : player->depotLockerMap) {
-		if (it.second->needsSave()) {
-			needsSave = true;
-			break;
-		}
-	}
-
-	if (needsSave) {
-		if (!db.executeQuery(fmt::format("DELETE FROM `player_depotlockeritems` WHERE `player_id` = {:d}", player->getGUID()))) {
-			return false;
-		}
-
-		DBInsert lockerQuery("INSERT INTO `player_depotlockeritems` (`player_id`, `pid`, `sid`, `itemtype`, `count`, `attributes`) VALUES ");
-		itemList.clear();
-
-		for (const auto& it : player->depotLockerMap) {
-			for (Item* item : it.second->getItemList()) {
-				if (item->getID() != ITEM_DEPOT) {
-					itemList.emplace_back(it.first, item);
-				}
-			}
-		}
-
-		if (!saveItems(player, itemList, lockerQuery, propWriteStream)) {
-			return false;
-		}
-
-		//save depot items
-		if (needsSave) {
-			if (!db.executeQuery(fmt::format("DELETE FROM `player_depotitems` WHERE `player_id` = {:d}", player->getGUID()))) {
-				return false;
-			}
-
-			DBInsert depotQuery("INSERT INTO `player_depotitems` (`player_id`, `pid`, `sid`, `itemtype`, `count`, `attributes`) VALUES ");
-			itemList.clear();
-
-			for (const auto& it : player->depotChests) {
-				for (Item* item : it.second->getItemList()) {
-					itemList.emplace_back(it.first, item);
-				}
-			}
-
-			if (!saveItems(player, itemList, depotQuery, propWriteStream)) {
-				return false;
-			}
-		}
-	}
-
-	if (!db.executeQuery(fmt::format("DELETE FROM `player_storage` WHERE `player_id` = {:d}", player->getGUID()))) {
-		return false;
-	}
-
-	DBInsert storageQuery("INSERT INTO `player_storage` (`player_id`, `key`, `value`) VALUES ");
-	player->genReservedStorageRange();
-
-	for (const auto& it : player->storageMap) {
-		if (!storageQuery.addRow(fmt::format("{:d}, {:d}, {:d}", player->getGUID(), it.first, it.second))) {
-			return false;
-		}
-	}
-
-	if (!storageQuery.execute()) {
 		return false;
 	}
 

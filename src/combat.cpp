@@ -22,6 +22,7 @@
 #include "combat.h"
 
 #include "game.h"
+#include "monster.h"
 #include "weapons.h"
 #include "configmanager.h"
 #include "events.h"
@@ -267,9 +268,12 @@ ReturnValue Combat::canTargetCreature(Player* attacker, Creature* target)
 		if (isProtected(attacker, target->getPlayer())) {
 			return RETURNVALUE_YOUMAYNOTATTACKTHISPLAYER;
 		}
+	}
 
-		if (attacker->hasSecureMode() && !Combat::isInPvpZone(attacker, target) && attacker->getSkullClient(target->getPlayer()) == SKULL_NONE) {
-			return RETURNVALUE_TURNSECUREMODETOATTACKUNMARKEDPLAYERS;
+	if (target->getPlayer() || (target->getMonster() && target->getMonster()->isAi())) {
+
+		if (attacker->getGuild() && target->getGuild() && attacker->getGuild()->getId() == target->getGuild()->getId()){
+			return RETURNVALUE_YOUMAYNOTATTACKTHISPLAYER;
 		}
 	}
 
@@ -386,7 +390,7 @@ ReturnValue Combat::canDoCombat(Creature* attacker, Creature* target)
 			if (target->isSummon() && target->getMaster()->getPlayer() && target->getZone() == ZONE_NOPVP) {
 				return RETURNVALUE_ACTIONNOTPERMITTEDINANOPVPZONE;
 			}
-		} else if (attacker->getMonster()) {
+		} else if (attacker->getMonster() && !attacker->getMonster()->isAi()) {
 			const Creature* targetMaster = target->getMaster();
 
 			if (!targetMaster || !targetMaster->getPlayer()) {
@@ -843,11 +847,8 @@ void Combat::doTargetCombat(Creature* caster, Creature* target, CombatDamage& da
 		}
 
 		if (casterPlayer) {
-			Player* targetPlayer = target ? target->getPlayer() : nullptr;
-			if (targetPlayer) {
-				damage.primary.value /= 2;
-				damage.secondary.value /= 2;
-			}
+			damage.primary.value /= 2;
+			damage.secondary.value /= 2;
 
 			if (!damage.critical && damage.primary.type != COMBAT_HEALING && damage.origin != ORIGIN_CONDITION) {
 				uint16_t chance = casterPlayer->getSpecialSkill(SPECIALSKILL_CRITICALHITCHANCE);
@@ -1009,8 +1010,7 @@ void Combat::doAreaCombat(Creature* caster, const Position& position, const Area
 		CombatDamage damageCopy = damage; // we cannot avoid copying here, because we don't know if it's player combat or not, so we can't modify the initial damage.
 		bool playerCombatReduced = false;
 		if ((damageCopy.primary.value < 0 || damageCopy.secondary.value < 0) && caster) {
-			Player* targetPlayer = creature->getPlayer();
-			if (casterPlayer && targetPlayer && casterPlayer != targetPlayer) {
+			if (caster->getPlayer() && (creature->getPlayer() || (creature->getMonster() && creature->getMonster()->isAi()))) {
 				damageCopy.primary.value /= 2;
 				damageCopy.secondary.value /= 2;
 				playerCombatReduced = true;

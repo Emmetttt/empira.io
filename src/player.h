@@ -27,11 +27,9 @@
 #include "enums.h"
 #include "vocation.h"
 #include "protocolgame.h"
-#include "ioguild.h"
 #include "party.h"
 #include "depotchest.h"
 #include "depotlocker.h"
-#include "guild.h"
 #include "groups.h"
 #include "town.h"
 #include "string"
@@ -46,7 +44,6 @@ class Npc;
 class Party;
 class SchedulerTask;
 class Bed;
-class Guild;
 
 enum skillsid_t {
 	SKILLVALUE_LEVEL = 0,
@@ -149,7 +146,8 @@ class Player final : public Creature, public Cylinder
 
 		bool isDefaultCharacter()
 		{
-			return getName().compare("Knight") || getName().compare("Sorcerer") || getName().compare("Druid") || getName().compare("Paladin");
+			// 0 : if both strings are equal.
+			return getName().compare("Knight") == 0 || getName().compare("Sorcerer") == 0 || getName().compare("Druid") == 0 || getName().compare("Paladin") == 0;
 			// return getAccount() == 1;  
 		}
 
@@ -182,29 +180,7 @@ class Player final : public Creature, public Cylinder
 			bankBalance = balance;
 		}
 
-		Guild* getGuild() const {
-			return guild;
-		}
-		void setGuild(Guild* guild);
-
-		GuildRank_ptr getGuildRank() const {
-			return guildRank;
-		}
-		void setGuildRank(GuildRank_ptr newGuildRank) {
-			guildRank = newGuildRank;
-		}
-
-		bool isGuildMate(const Player* player) const;
-
-		const std::string& getGuildNick() const {
-			return guildNick;
-		}
-		void setGuildNick(std::string nick) {
-			guildNick = nick;
-		}
-
-		bool isInWar(const Player* player) const;
-		bool isInWarList(uint32_t guildId) const;
+		void sendToGameTypeDefaultLocation();
 
 		void setLastWalkthroughAttempt(int64_t walkthroughAttempt) {
 			lastWalkthroughAttempt = walkthroughAttempt;
@@ -215,12 +191,11 @@ class Player final : public Creature, public Cylinder
 
 		uint16_t getClientIcons() const;
 
-		const GuildWarVector& getGuildWarVector() const {
-			return guildWarVector;
-		}
-
 		Vocation* getVocation() const {
 			return vocation;
+		}
+		uint16_t getHelpers() const {
+			return Creature::getHelpers();
 		}
 
 		OperatingSystem_t getOperatingSystem() const {
@@ -255,8 +230,6 @@ class Player final : public Creature, public Cylinder
 		bool addPartyInvitation(Party* party);
 		void removePartyInvitation(Party* party);
 		void clearPartyInvitations();
-
-		GuildEmblems_t getGuildEmblem(const Player* player) const;
 
 		uint64_t getSpentMana() const {
 			return manaSpent;
@@ -363,8 +336,6 @@ class Player final : public Creature, public Cylinder
 		bool isPremium() const;
 		void setPremiumTime(time_t premiumEndsAt);
 
-		uint16_t getHelpers() const;
-
 		bool setVocation(uint16_t vocId);
 		uint16_t getVocationId() const {
 			return vocation->getId();
@@ -399,6 +370,69 @@ class Player final : public Creature, public Cylinder
 			this->town = town;
 		}
 
+				/* stats */
+		uint16_t getKills() const {
+			return kills;
+		}
+		void incrementKills() {
+			kills++;
+		}
+		void resetKills() {
+			kills = 0;
+		}
+		uint16_t getBotKills() const {
+			return botKills;
+		}
+		void incrementBotKills() {
+			botKills++;
+		}
+		void resetBotKills() {
+			botKills = 0;
+		}
+
+		uint16_t getPlayerKills() const {
+			return playerKills;
+		}
+		void incrementPlayerKills() {
+			playerKills++;
+		}
+		void resetPlayerKills() {
+			playerKills = 0;
+		}
+
+		uint16_t getDeaths() const {
+			return deaths;
+		}
+		void incrementDeaths() {
+			deaths++;
+		}
+		void resetDeaths() {
+			deaths = 0;
+		}
+		bool isWinner() {
+			return winner;
+		}
+
+		void resetWinner() {
+			winner = false;
+		}
+
+		void rewardWin();
+		void rewardMostKills();
+		void rewardHighestStreak();
+
+		uint16_t getLongestStreak() const {
+			return longestStreak;
+		}
+		void setLongestStreak(uint16_t streak) {
+			if (streak > longestStreak){
+				longestStreak = streak;
+			}
+		}
+		void resetLongestStreak() {
+			longestStreak = 0;
+		}
+
 		bool isPushable() const override;
 		uint32_t isMuted() const;
 		void addMessageBuffer();
@@ -426,12 +460,6 @@ class Player final : public Creature, public Cylinder
 
 		int32_t getMaxHealth() const override {
 			return std::max<int32_t>(1, healthMax + varStats[STAT_MAXHITPOINTS]);
-		}
-		uint32_t getMana() const {
-			return mana;
-		}
-		uint32_t getMaxMana() const {
-			return std::max<int32_t>(0, manaMax + varStats[STAT_MAXMANAPOINTS]);
 		}
 
 		Item* getInventoryItem(slots_t slot) const;
@@ -545,7 +573,6 @@ class Player final : public Creature, public Cylinder
 		static bool lastHitIsPlayer(Creature* lastHitCreature);
 
 		void changeHealth(int32_t healthChange, bool sendHealthChange = true) override;
-		void changeMana(int32_t manaChange);
 		void changeSoul(int32_t soulChange);
 
 		bool isPzLocked() const {
@@ -585,7 +612,8 @@ class Player final : public Creature, public Cylinder
 		void getShieldAndWeapon(const Item*& shield, const Item*& weapon) const;
 
 		void drainHealth(Creature* attacker, int32_t damage) override;
-		void drainMana(Creature* attacker, int32_t manaLoss);
+		void drainMana(Creature* attacker, int32_t manaLoss) override;
+		void changeMana(int32_t manaChange) override;
 		void addManaSpent(uint64_t amount);
 		void removeManaSpent(uint64_t amount, bool notify = false);
 		void addSkillAdvance(skills_t skill, uint64_t count);
@@ -623,12 +651,6 @@ class Player final : public Creature, public Cylinder
 
 		LightInfo getCreatureLight() const override;
 
-		int32_t getStreak() const {
-			return streak;
-		}
-		void addStreak(){
-			streak++;
-		}
 		Skulls_t getSkull() const override;
 		Skulls_t getSkullClient(const Creature* creature) const override;
 		int64_t getSkullTicks() const { return skullTicks; }
@@ -1089,7 +1111,6 @@ class Player final : public Creature, public Cylinder
 		std::map<uint32_t, int32_t> storageMap;
 
 		std::vector<OutfitEntry> outfits;
-		GuildWarVector guildWarVector;
 
 		std::list<ShopInfo> shopItemList;
 
@@ -1098,7 +1119,6 @@ class Player final : public Creature, public Cylinder
 		std::forward_list<Condition*> storedConditionList; // TODO: This variable is only temporarily used when logging in, get rid of it somehow
 
 		std::string name;
-		std::string guildNick;
 
 		Skill skills[SKILL_LAST + 1];
 		LightInfo itemsLight;
@@ -1122,8 +1142,6 @@ class Player final : public Creature, public Cylinder
 		int64_t nextAction = 0;
 
 		BedItem* bedItem = nullptr;
-		Guild* guild = nullptr;
-		GuildRank_ptr guildRank = nullptr;
 		Group* group = nullptr;
 		Item* tradeItem = nullptr;
  		Item* inventory[CONST_SLOT_LAST + 1] = {};
@@ -1137,7 +1155,6 @@ class Player final : public Creature, public Cylinder
 		Town* town = nullptr;
 		Vocation* vocation = nullptr;
 
-		uint32_t streak = 0;
 		uint32_t inventoryWeight = 0;
 		uint32_t capacity = 40000;
 		uint32_t damageImmunities = 0;
@@ -1154,8 +1171,6 @@ class Player final : public Creature, public Cylinder
 		uint32_t guid = 0;
 		uint32_t windowTextId = 0;
 		uint32_t editListId = 0;
-		uint32_t mana = 0;
-		uint32_t manaMax = 0;
 		int32_t varSpecialSkills[SPECIALSKILL_LAST + 1] = {};
 		int32_t varSkills[SKILL_LAST + 1] = {};
 		int32_t varStats[STAT_LAST + 1] = {};
@@ -1174,6 +1189,13 @@ class Player final : public Creature, public Cylinder
 		std::bitset<6> blessings;
 		uint8_t levelPercent = 0;
 		uint8_t magLevelPercent = 0;
+		/* stats */
+		uint16_t kills = 0;
+		uint16_t botKills = 0;
+		uint16_t playerKills = 0;
+		uint16_t deaths = 0;
+		uint16_t longestStreak = 0;
+		bool winner = false;
 
 		PlayerSex_t sex = PLAYERSEX_FEMALE;
 		OperatingSystem_t operatingSystem = CLIENTOS_NONE;

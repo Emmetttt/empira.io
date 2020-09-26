@@ -73,6 +73,7 @@ bool argumentsHandler(const StringVector& args);
 
 int main(int argc, char* argv[])
 {
+	std::cout << "Hi." << std::endl;
 	StringVector args = StringVector(argv, argv + argc);
 	if(argc > 1 && !argumentsHandler(args)) {
 		return 0;

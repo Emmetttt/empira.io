@@ -308,10 +308,6 @@ int32_t Weapon::playerWeaponCheck(Player* player, Creature* target, uint8_t shoo
 			return 0;
 		}
 
-		if (isPremium() && !player->isPremium()) {
-			return 0;
-		}
-
 		if (!vocWeaponMap.empty()) {
 			if (vocWeaponMap.find(player->getVocationId()) == vocWeaponMap.end()) {
 				return 0;

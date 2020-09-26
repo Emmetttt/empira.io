@@ -24,9 +24,11 @@
 #include "position.h"
 #include "condition.h"
 #include "const.h"
+#include "ioguild.h"
 #include "tile.h"
 #include "enums.h"
 #include "creatureevent.h"
+#include "guild.h"
 
 using ConditionList = std::list<Condition*>;
 using CreatureEventList = std::list<CreatureEvent*>;
@@ -227,6 +229,14 @@ class Creature : virtual public Thing
 		virtual int32_t getMaxHealth() const {
 			return healthMax;
 		}
+		uint32_t getMana() const {
+			return mana;
+		}
+		uint32_t getMaxMana() const {
+			return manaMax;
+		}
+		virtual void drainMana(Creature* attacker, int32_t manaLoss);
+		virtual void changeMana(int32_t manaChange);
 
 		void setDrunkenness(uint8_t newDrunkenness) {
 			drunkenness = newDrunkenness;
@@ -470,6 +480,41 @@ class Creature : virtual public Thing
 				delete this;
 			}
 		}
+		uint16_t getHelpers() const;
+		int32_t getStreak() const {
+			return streak;
+		}
+		void addStreak();
+
+		/* GUILD */
+		Guild* getGuild() const {
+			return guild;
+		}
+		void setGuild(Guild* guild);
+
+		GuildRank_ptr getGuildRank() const {
+			return guildRank;
+		}
+		void setGuildRank(GuildRank_ptr newGuildRank) {
+			guildRank = newGuildRank;
+		}
+
+		const std::string& getGuildNick() const {
+			return guildNick;
+		}
+		void setGuildNick(std::string nick) {
+			guildNick = nick;
+		}
+		GuildEmblems_t getGuildEmblem(const Creature* creature) const;
+		const GuildWarVector& getGuildWarVector() const {
+			return guildWarVector;
+		}
+		GuildWarVector& getMutableGuildWarVector() {
+			return guildWarVector;
+		}
+		bool isInWar(const Creature* player) const;
+		bool isInWarList(uint32_t guildId) const;
+		bool isGuildMate(const Creature* creature) const;
 
 	protected:
 		virtual bool useCacheMap() const {
@@ -517,6 +562,9 @@ class Creature : virtual public Thing
 		int32_t health = 1000;
 		int32_t healthMax = 1000;
 		uint8_t drunkenness = 0;
+		uint32_t mana = 0;
+		uint32_t manaMax = 0;
+		uint32_t streak = 0;
 
 		Outfit_t currentOutfit;
 		Outfit_t defaultOutfit;
@@ -568,6 +616,11 @@ class Creature : virtual public Thing
 		virtual void death(Creature*) {}
 		virtual bool dropCorpse(Creature* lastHitCreature, Creature* mostDamageCreature, bool lastHitUnjustified, bool mostDamageUnjustified);
 		virtual Item* getCorpse(Creature* lastHitCreature, Creature* mostDamageCreature);
+
+		Guild* guild = nullptr;
+		GuildRank_ptr guildRank = nullptr;
+		std::string guildNick;
+		GuildWarVector guildWarVector;
 
 		friend class Game;
 		friend class Map;

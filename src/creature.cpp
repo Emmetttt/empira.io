@@ -91,6 +91,31 @@ bool Creature::canSeeCreature(const Creature* creature) const
 	return true;
 }
 
+void Creature::addStreak()
+{
+	streak++;
+	switch (getStreak()) {
+		case 1:
+			setSkull(SKULL_GREEN);
+			break;
+		case 2:
+			setSkull(SKULL_YELLOW);
+			break;
+		case 3:
+			setSkull(SKULL_WHITE);
+			break;
+		case 5:
+			setSkull(SKULL_ORANGE);
+			break;
+		case 10:
+			setSkull(SKULL_RED);
+			break;
+		case 20:
+			setSkull(SKULL_BLACK);
+			break;
+	}
+}
+
 void Creature::setSkull(Skulls_t newSkull)
 {
 	skull = newSkull;
@@ -718,16 +743,25 @@ void Creature::onDeath()
 		}
 	}
 
-	bool droppedCorpse = dropCorpse(lastHitCreature, mostDamageCreature, lastHitUnjustified, mostDamageUnjustified);
+	Guild* killerGuild = lastHitCreature->getGuild();
+	if (killerGuild && guild && guild->getId() != killerGuild->getId()){
+		killerGuild->addKill();
+		guild->addDeath();
+		lastHitCreature->addStreak();
+	}
+
+	streak = 0;
+	setSkull(SKULL_NONE);
+
+	dropCorpse(lastHitCreature, mostDamageCreature, lastHitUnjustified, mostDamageUnjustified);
 	death(lastHitCreature);
 
 	if (master) {
 		setMaster(nullptr);
 	}
 
-	if (droppedCorpse) {
-		g_game.removeCreature(this, false);
-	}
+	streak = 0;
+	setSkull(SKULL_NONE);
 }
 
 bool Creature::dropCorpse(Creature* lastHitCreature, Creature* mostDamageCreature, bool lastHitUnjustified, bool mostDamageUnjustified)
@@ -782,6 +816,25 @@ bool Creature::dropCorpse(Creature* lastHitCreature, Creature* mostDamageCreatur
 	}
 
 	return true;
+}
+
+void Creature::drainMana(Creature* attacker, int32_t manaLoss)
+{
+	onAttacked();
+	changeMana(-manaLoss);
+
+	if (attacker) {
+		addDamagePoints(attacker, manaLoss);
+	}
+}
+
+void Creature::changeMana(int32_t manaChange)
+{
+	if (manaChange > 0) {
+		mana += std::min<int32_t>(manaChange, getMaxMana() - mana);
+	} else {
+		mana = std::max<int32_t>(0, mana + manaChange);
+	}
 }
 
 bool Creature::hasBeenAttacked(uint32_t attackerId)
@@ -1633,3 +1686,98 @@ bool Creature::getPathTo(const Position& targetPos, std::vector<Direction>& dirL
 	fpp.maxTargetDist = maxTargetDist;
 	return getPathTo(targetPos, dirList, fpp);
 }
+
+
+void Creature::setGuild(Guild* guild)
+{
+	if (guild == this->guild) {
+		return;
+	}
+
+	Guild* oldGuild = this->guild;
+
+	this->guildNick.clear();
+	this->guild = nullptr;
+	this->guildRank = nullptr;
+
+	if (guild) {
+		GuildRank_ptr rank = guild->getRankByLevel(1);
+		if (!rank) {
+			return;
+		}
+
+		this->guild = guild;
+		this->guildRank = rank;
+		guild->addMember(this);
+	}
+
+	if (oldGuild) {
+		oldGuild->removeMember(this);
+	}
+}
+
+uint16_t Creature::getHelpers() const
+{
+	uint16_t helpers;
+
+	if (guild) {
+		helpers = guild->getMembersOnlineCount();
+	}
+	else {
+		helpers = 0;
+	}
+
+	return helpers;
+}
+
+GuildEmblems_t Creature::getGuildEmblem(const Creature* creature) const
+{
+	if (!creature){
+		return GUILDEMBLEM_NONE;
+	}
+
+	const Guild* creatureGuild = creature->getGuild();
+	if (!creatureGuild) {
+		return GUILDEMBLEM_NONE;
+	}
+
+	if (creature->getGuildWarVector().empty()) {
+		if (guild == creatureGuild) {
+				return GUILDEMBLEM_ALLY;
+		} else {
+				return GUILDEMBLEM_NEUTRAL;
+		}
+	} else if (guild == creatureGuild) {
+			return GUILDEMBLEM_ALLY;
+	} else if (isInWar(creature)) {
+			return GUILDEMBLEM_ENEMY;
+	}
+	return GUILDEMBLEM_NEUTRAL;
+}
+
+bool Creature::isInWar(const Creature* creature) const
+{
+	if (!creature || !guild) {
+		return false;
+	}
+
+	const Guild* playerGuild = creature->getGuild();
+	if (!playerGuild) {
+		return false;
+	}
+
+	return isInWarList(playerGuild->getId()) && creature->isInWarList(guild->getId());
+}
+
+bool Creature::isInWarList(uint32_t guildId) const
+{
+	return std::find(guildWarVector.begin(), guildWarVector.end(), guildId) != guildWarVector.end();
+}
+
+bool Creature::isGuildMate(const Creature* creature) const
+{
+	if (!creature || !guild) {
+		return false;
+	}
+	return guild == creature->guild;
+} 

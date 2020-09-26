@@ -28,6 +28,7 @@ extern LuaEnvironment g_luaEnvironment;
 
 bool BaseEvents::loadFromXml()
 {
+	std::cout << "errwwt22" << std::endl;
 	if (loaded) {
 		std::cout << "[Error - BaseEvents::loadFromXml] It's already loaded." << std::endl;
 		return false;

@@ -25,12 +25,12 @@
 
 extern Game g_game;
 
-void Guild::addMember(Player* player)
+void Guild::addMember(Creature* player)
 {
 	membersOnline.push_back(player);
 }
 
-void Guild::removeMember(Player* player)
+void Guild::removeMember(Creature* player)
 {
 	membersOnline.remove(player);
 }

@@ -626,8 +626,6 @@ function doPlayerSetTown(cid, town) local p = Player(cid) return p and p:setTown
 function setPlayerGroupId(cid, groupId) local p = Player(cid) return p and p:setGroup(Group(groupId)) or false end
 doPlayerSetGroupId = setPlayerGroupId
 function doPlayerSetSex(cid, sex) local p = Player(cid) return p and p:setSex(sex) or false end
-function doPlayerSetGuildLevel(cid, level) local p = Player(cid) return p and p:setGuildLevel(level) or false end
-function doPlayerSetGuildNick(cid, nick) local p = Player(cid) return p and p:setGuildNick(nick) or false end
 function doPlayerSetOfflineTrainingSkill(cid, skillId) local p = Player(cid) return p and p:setOfflineTrainingSkill(skillId) or false end
 function doShowTextDialog(cid, itemId, text) local p = Player(cid) return p and p:showTextDialog(itemId, text) or false end
 function doPlayerAddItemEx(cid, uid, ...) local p = Player(cid) return p and p:addItemEx(Item(uid), ...) or false end
@@ -1300,13 +1298,6 @@ function broadcastMessage(message, messageType)
 	print("> Broadcasted message: \"" .. message .. "\".")
 end
 doBroadcastMessage = broadcastMessage
-
-function Guild.addMember(self, player)
-	return player:setGuild(self)
-end
-function Guild.removeMember(self, player)
-	return player:getGuild() == self and player:setGuild(nil)
-end
 
 function getPlayerInstantSpellCount(cid) local p = Player(cid) return p and #p:getInstantSpells() end
 function getPlayerInstantSpellInfo(cid, spellId)

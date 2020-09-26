@@ -1595,7 +1595,7 @@ bool ConditionSpeed::startCondition(Creature* creature)
 	}
 
 	if (speedDelta == 0) {
-		auto minmax = getFormulaValues(creature->getBaseSpeed(), mina, minb, maxa, maxb);
+		auto minmax = getFormulaValues(creature->getSpeed(), mina, minb, maxa, maxb);
 		speedDelta = uniform_random(minmax.first, minmax.second);
 	}
 

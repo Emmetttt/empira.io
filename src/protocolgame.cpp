@@ -154,7 +154,7 @@ void ProtocolGame::login(const std::string& name, uint32_t accountId, OperatingS
 {
 	//dispatcher thread
 	Player* foundPlayer = g_game.getPlayerByName(name);
-	if (!foundPlayer || g_config.getBoolean(ConfigManager::ALLOW_CLONES)) {
+	if (!foundPlayer || foundPlayer->isDefaultCharacter()) {
 		player = new Player(getThis());
 		player->setName(name);
 
@@ -2193,7 +2193,7 @@ void ProtocolGame::AddCreature(NetworkMessage& msg, const Creature* creature, bo
 	msg.addByte(player->getPartyShield(otherPlayer));
 
 	if (!known) {
-		msg.addByte(player->getGuildEmblem(otherPlayer));
+		msg.addByte(player->getGuildEmblem(creature));
 	}
 
 	msg.addByte(player->canWalkthroughEx(creature) ? 0x00 : 0x01);

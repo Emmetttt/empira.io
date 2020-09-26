@@ -35,6 +35,7 @@ enum TargetSearchType_t {
 	TARGETSEARCH_RANDOM,
 	TARGETSEARCH_ATTACKRANGE,
 	TARGETSEARCH_NEAREST,
+	TARGETSEARCH_AI,
 };
 
 class Monster final : public Creature
@@ -88,6 +89,12 @@ class Monster final : public Creature
 		}
 		void setMasterPos(Position pos) {
 			masterPos = pos;
+		}
+		uint32_t getWaypoint() const {
+			return waypoint;
+		}
+		void incrementWaypoint(){
+			waypoint++;
 		}
 
 		RaceType_t getRace() const override {
@@ -178,6 +185,9 @@ class Monster final : public Creature
 		bool isIgnoringFieldDamage() const {
 			return ignoreFieldDamage;
 		}
+		bool isAi() const {
+			return ai;
+		}
 
 		BlockType_t blockHit(Creature* attacker, CombatType_t combatType, int32_t& damage,
 		                     bool checkDefense = false, bool checkArmor = false, bool field = false, bool ignoreResistances = false) override;
@@ -200,12 +210,14 @@ class Monster final : public Creature
 		uint32_t targetTicks = 0;
 		uint32_t targetChangeTicks = 0;
 		uint32_t defenseTicks = 0;
+		uint32_t healCount = 100;
 		uint32_t yellTicks = 0;
 		int32_t minCombatValue = 0;
 		int32_t maxCombatValue = 0;
 		int32_t targetChangeCooldown = 0;
 		int32_t challengeFocusDuration = 0;
 		int32_t stepDuration = 0;
+		uint32_t waypoint = 1;
 
 		Position masterPos;
 
@@ -214,7 +226,9 @@ class Monster final : public Creature
 		bool isMasterInRange = false;
 		bool randomStepping = false;
 		bool walkingToSpawn = false;
+		bool ai = false;
 
+		void loadAi();
 		void onCreatureEnter(Creature* creature);
 		void onCreatureLeave(Creature* creature);
 		void onCreatureFound(Creature* creature, bool pushFront = false);

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<monster name="BOT Sorcerer" nameDescription="a Sorcerer" race="blood" experience="12938980" speed="339">
+	<health now="1270" max="1270" />
+	<mana now="6600" max="6600" />
+	<look type="145" head="113" body="120" legs="95" feet="115" addons="3" corpse="3058" />
+	<targetchange interval="10000" chance="100" />
+	<flags>
+		<flag summonable="0" />
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="0" />
+		<flag convinceable="0" />
+		<flag pushable="1" />
+		<flag canpushitems="1" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="3" />
+		<flag staticattack="90" />
+		<flag runonhealth="0" />
+		<flag canwalkonenergy="1" />
+		<flag canwalkonfire="1" />
+		<flag canwalkonpoison="1" />
+		<flag isAi="1" />
+	</flags>
+	<attacks>
+		<attack name="death" interval="2000" chance="90" range="7" min="-330" max="-429">
+			<attribute key="shootEffect" value="suddendeath" />
+			<attribute key="areaEffect" value="mortarea" />
+		</attack>
+		<attack name="magicwall" chance="10">
+			<attribute key="shootEffect" value="energyball" />
+		</attack>
+	</attacks>
+	<defenses armor="39" defense="0">
+		<defense name="healing" interval="1200" min="808" max="1050" healthPercent="80">
+			<attribute key="areaEffect" value="blueshimmer" />
+		</defense>
+		<defense name="speed" interval="2000" speedchange="500" duration="30000">
+			<attribute key="areaEffect" value="blueshimmer" />
+		</defense>
+		<defense name="manashield" interval="2000" duration="180000">
+			<attribute key="areaEffect" value="blueshimmer" />
+		</defense>
+	</defenses>
+	<loot>
+	    <item id="7590" countmax="50" chance="25000" /> <!-- GMP -->
+	    <item id="2268" countmax="50" chance="25000" /> <!-- SD -->
+	    <item id="2273" countmax="20" chance="25000" /> <!-- UH -->
+	    <item id="2293" countmax="50" chance="25000" /> <!-- MWALL -->
+	    <item id="2274" countmax="50" chance="25000" /> <!-- AVA -->
+	    <item id="2269" countmax="10" chance="25000" /> <!-- TREE WALL -->
+	    <item id="2278" countmax="30" chance="25000" /> <!-- PARA -->
+	    <item id="7589" countmax="50" chance="25000" /> <!-- SMP -->
+	    <item id="8472" countmax="50" chance="25000" /> <!-- GSP-->
+	    <item id="18436" countmax="50" chance="25000" /> <!-- AMMO-->
+	    <item id="2295" countmax="50" chance="25000" /> <!-- HOLY -->
+	    <item id="7620" countmax="50" chance="25000" /> <!-- mana -->
+	    <item id="8473" countmax="50" chance="25000" /> <!-- UHP -->
+	    <item id="2316" countmax="50" chance="25000" /> <!-- Healing Wind -->
+	</loot>
+</monster>

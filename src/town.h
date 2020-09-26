@@ -90,6 +90,18 @@ class Towns
 		const TownMap& getTowns() const {
 			return townMap;
 		}
+		
+		std::list<Position>& getForbiddenSquares() const {
+			std::list<Position>* forbiddenSquares = new std::list<Position>();
+			std::string forbiddenIdentifier = "ForbiddenSquare";
+			for (const auto& it : townMap) {
+				if (strncmp(it.second->getName().c_str(), forbiddenIdentifier.c_str(), forbiddenIdentifier.length()) == 0) {
+					forbiddenSquares->push_back(it.second->getTemplePosition()) ;
+				}
+			}
+
+			return *forbiddenSquares;
+		}
 
 	private:
 		TownMap townMap;
