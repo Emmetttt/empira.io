@@ -18,7 +18,7 @@ if (NOT WIN32)
 endif ()
 
 set(CMAKE_CXX_FLAGS_PERFORMANCE "${CMAKE_CXX_FLAGS_RELEASE} -march=native")
-
+set(USE_SYSTEM_CSL 1)
 if (CMAKE_COMPILER_IS_GNUCXX)
     add_compile_options(-fno-strict-aliasing)
 endif ()
