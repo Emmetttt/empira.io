@@ -33,11 +33,6 @@ void Guild::addMember(Player* player)
 void Guild::removeMember(Player* player)
 {
 	membersOnline.remove(player);
-
-	if (membersOnline.empty()) {
-		g_game.removeGuild(id);
-		delete this;
-	}
 }
 
 GuildRank_ptr Guild::getRankById(uint32_t rankId)

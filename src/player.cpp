@@ -89,7 +89,7 @@ std::string Player::getDescription(int32_t lookDistance) const
 	std::ostringstream s;
 
 	if (lookDistance == -1) {
-		s << "yourself.";
+		s << "yourself (Streak: " << getStreak() <<").";
 
 		if (group->access) {
 			s << " You are " << group->name << '.';
@@ -156,17 +156,8 @@ std::string Player::getDescription(int32_t lookDistance) const
 		s << " He is ";
 	}
 
-	s << guildRank->name << " of the " << guild->getName();
-	if (!guildNick.empty()) {
-		s << " (" << guildNick << ')';
-	}
-
-	size_t memberCount = guild->getMemberCount();
-	if (memberCount == 1) {
-		s << ", which has 1 member, " << guild->getMembersOnline().size() << " of them online.";
-	} else {
-		s << ", which has " << memberCount << " members, " << guild->getMembersOnline().size() << " of them online.";
-	}
+	s << "on the " << guild->getName();
+	s << " (" << guild->getKills() << " kills, " << guild->getDeaths() << " deaths)";
 	return s.str();
 }
 
@@ -1174,18 +1165,22 @@ void Player::onRemoveCreature(Creature* creature, bool isLogout)
 			guild->removeMember(this);
 		}
 
-		IOLoginData::updateOnlineStatus(guid, false);
-
-		bool saved = false;
-		for (uint32_t tries = 0; tries < 3; ++tries) {
-			if (IOLoginData::savePlayer(this)) {
-				saved = true;
-				break;
+		// Explicitly do not save default players
+		if (!isDefaultCharacter()){
+			IOLoginData::updateOnlineStatus(guid, false);
+			bool saved = false;
+			for (uint32_t tries = 0; tries < 3; ++tries) {
+				if (IOLoginData::savePlayer(this)) {
+					saved = true;
+					break;
+				}
+			}
+			if (!saved) {
+				std::cout << "Error while saving player: " << getName() << std::endl;
 			}
 		}
-
-		if (!saved) {
-			std::cout << "Error while saving player: " << getName() << std::endl;
+		else {
+			std::cout << "Not saving player: " << getName() << std::endl; 
 		}
 	}
 }
@@ -1917,8 +1912,20 @@ void Player::death(Creature* lastHitCreature)
 {
 	loginPosition = town->getTemplePosition();
 
+	Guild* playerGuild = getGuild();
+	if (playerGuild){
+		playerGuild->addDeath();
+	}
+
 	if (skillLoss) {
 		bool lastHitPlayer = Player::lastHitIsPlayer(lastHitCreature);
+
+		if (lastHitPlayer){
+			Guild* guild = lastHitCreature->getPlayer()->getGuild();
+			if (guild && playerGuild && guild->getId() != playerGuild->getId()){
+				guild->addKill();
+			}
+		}
 
 		//Magic level loss
 		uint64_t sumMana = 0;
@@ -1988,13 +1995,8 @@ void Player::death(Creature* lastHitCreature)
 		sendSkills();
 		sendReLoginWindow();
 
-		if (getSkull() == SKULL_BLACK) {
-			health = 40;
-			mana = 0;
-		} else {
-			health = healthMax;
-			mana = manaMax;
-		}
+		health = healthMax;
+		mana = manaMax;
 
 		auto it = conditions.begin(), end = conditions.end();
 		while (it != end) {
@@ -3182,7 +3184,7 @@ uint64_t Player::getGainedExperience(Creature* attacker) const
 	if (g_config.getBoolean(ConfigManager::EXPERIENCE_FROM_PLAYERS)) {
 		Player* attackerPlayer = attacker->getPlayer();
 		if (attackerPlayer && attackerPlayer != this && skillLoss && std::abs(static_cast<int32_t>(attackerPlayer->getLevel() - level)) <= g_config.getNumber(ConfigManager::EXP_FROM_PLAYERS_LEVEL_RANGE)) {
-			return std::max<uint64_t>(0, std::floor(getLostExperience() * getDamageRatio(attacker) * 0.75));
+			return std::max<uint64_t>(0, std::floor(getExperience() * getDamageRatio(attacker) * 0.1));
 		}
 	}
 	return 0;
@@ -3318,10 +3320,6 @@ void Player::onEndCondition(ConditionType_t type)
 		onIdleStatus();
 		pzLocked = false;
 		clearAttacked();
-
-		if (getSkull() != SKULL_RED && getSkull() != SKULL_BLACK) {
-			setSkull(SKULL_NONE);
-		}
 	}
 
 	sendIcons();
@@ -3384,11 +3382,7 @@ void Player::onAttackedCreature(Creature* target, bool addFightTicks /* = true *
 
 		targetPlayer->addInFightTicks();
 
-		if (getSkull() == SKULL_NONE && getSkullClient(targetPlayer) == SKULL_YELLOW) {
-			addAttacked(targetPlayer);
-			targetPlayer->sendCreatureSkull(this);
-		} else {
-
+		if (!targetPlayer->hasAttacked(this)) {
 			if (!targetPlayer->hasAttacked(this) || !g_config.getBoolean(ConfigManager::PZLOCK_SKULL_ATTACKER)) {
 				if (!pzLocked && g_game.getWorldType() != WORLD_TYPE_PVP_ENFORCED) {
 					pzLocked = true;
@@ -3397,10 +3391,6 @@ void Player::onAttackedCreature(Creature* target, bool addFightTicks /* = true *
 
 				if (!Combat::isInPvpZone(this, targetPlayer) && !isInWar(targetPlayer)) {
 					addAttacked(targetPlayer);
-
-					if (targetPlayer->getSkull() == SKULL_NONE && getSkull() == SKULL_NONE) {
-						setSkull(SKULL_WHITE);
-					}
 
 					if (getSkull() == SKULL_NONE) {
 						targetPlayer->sendCreatureSkull(this);
@@ -3434,6 +3424,17 @@ void Player::onIdleStatus()
 
 void Player::onPlacedCreature()
 {
+	std::ostringstream ss1;
+	ss1 << "Current Game Mode: " << static_cast<std::underlying_type<GameMode_t>::type>(g_game.getGameMode()) << ".";
+	sendTextMessage(MESSAGE_STATUS_CONSOLE_RED, ss1.str());
+
+	Guild* guild = getGuild();
+	if (guild){
+		std::ostringstream ss2;
+		ss2 << "Current Score: " << guild->getKills() << ":" << guild->getDeaths() << " (Target: " << std::to_string(g_config.getNumber(ConfigManager::TDM_KILLS_TO_WIN)) << ").";
+		sendTextMessage(MESSAGE_STATUS_CONSOLE_RED, ss2.str());
+	}
+	
 	//scripting event - onLogin
 	if (!g_creatureEvents->playerLogin(this)) {
 		kickPlayer(true);
@@ -3489,22 +3490,26 @@ bool Player::onKilledCreature(Creature* target, bool lastHit/* = true*/)
 		return false;
 	}
 
-	if (targetPlayer->getZone() == ZONE_PVP) {
-		targetPlayer->setDropLoot(false);
-		targetPlayer->setSkillLoss(false);
-	} else if (!hasFlag(PlayerFlag_NotGainInFight) && !isPartner(targetPlayer)) {
-		if (!Combat::isInPvpZone(this, targetPlayer) && hasAttacked(targetPlayer) && !targetPlayer->hasAttacked(this) && !isGuildMate(targetPlayer) && targetPlayer != this) {
-			if (targetPlayer->getSkull() == SKULL_NONE && !isInWar(targetPlayer)) {
-				unjustified = true;
-				addUnjustifiedDead(targetPlayer);
-			}
-
-			if (lastHit && hasCondition(CONDITION_INFIGHT)) {
-				pzLocked = true;
-				Condition* condition = Condition::createCondition(CONDITIONID_DEFAULT, CONDITION_INFIGHT, g_config.getNumber(ConfigManager::WHITE_SKULL_TIME) * 1000, 0);
-				addCondition(condition);
-			}
-		}
+	addStreak();
+	switch (getStreak()) {
+		case 1:
+			setSkull(SKULL_GREEN);
+			break;
+		case 2:
+			setSkull(SKULL_YELLOW);
+			break;
+		case 3:
+			setSkull(SKULL_WHITE);
+			break;
+		case 5:
+			setSkull(SKULL_ORANGE);
+			break;
+		case 10:
+			setSkull(SKULL_RED);
+			break;
+		case 20:
+			setSkull(SKULL_BLACK);
+			break;
 	}
 
 	return unjustified;
@@ -3752,13 +3757,6 @@ Skulls_t Player::getSkullClient(const Creature* creature) const
 		return Creature::getSkullClient(creature);
 	}
 
-	if (player->hasAttacked(this)) {
-		return SKULL_YELLOW;
-	}
-
-	if (isPartner(player)) {
-		return SKULL_GREEN;
-	}
 	return Creature::getSkullClient(creature);
 }
 
@@ -3806,14 +3804,6 @@ void Player::addUnjustifiedDead(const Player* attacked)
 	sendTextMessage(MESSAGE_EVENT_ADVANCE, "Warning! The murder of " + attacked->getName() + " was not justified.");
 
 	skullTicks += g_config.getNumber(ConfigManager::FRAG_TIME);
-
-	if (getSkull() != SKULL_BLACK) {
-		if (g_config.getNumber(ConfigManager::KILLS_TO_BLACK) != 0 && skullTicks > (g_config.getNumber(ConfigManager::KILLS_TO_BLACK) - 1) * static_cast<int64_t>(g_config.getNumber(ConfigManager::FRAG_TIME))) {
-			setSkull(SKULL_BLACK);
-		} else if (getSkull() != SKULL_RED && g_config.getNumber(ConfigManager::KILLS_TO_RED) != 0 && skullTicks > (g_config.getNumber(ConfigManager::KILLS_TO_RED) - 1) * static_cast<int64_t>(g_config.getNumber(ConfigManager::FRAG_TIME))) {
-			setSkull(SKULL_RED);
-		}
-	}
 }
 
 void Player::checkSkullTicks(int64_t ticks)
@@ -3823,10 +3813,6 @@ void Player::checkSkullTicks(int64_t ticks)
 		skullTicks = 0;
 	} else {
 		skullTicks = newTicks;
-	}
-
-	if ((skull == SKULL_RED || skull == SKULL_BLACK) && skullTicks < 1 && !hasCondition(CONDITION_INFIGHT)) {
-		setSkull(SKULL_NONE);
 	}
 }
 
@@ -4385,7 +4371,7 @@ uint16_t Player::getHelpers() const
 
 		helpers = helperSet.size();
 	} else if (guild) {
-		helpers = guild->getMembersOnline().size();
+		helpers = guild->getMembersOnlineCount();
 	} else if (party) {
 		helpers = party->getMemberCount() + party->getInvitationCount() + 1;
 	} else {

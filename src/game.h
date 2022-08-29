@@ -61,6 +61,19 @@ enum GameState_t {
 	GAME_STATE_SHUTDOWN,
 	GAME_STATE_CLOSING,
 	GAME_STATE_MAINTAIN,
+	GAME_STATE_GAMEMODE_START,
+	GAME_STATE_GAMEMODE_END,
+};
+
+enum CurrentMap_t {
+	CURRENT_MAP_VENORE,
+	CURRENT_MAP_THAIS,
+	CURRENT_MAP_EDRON,
+	CURRENT_MAP_FIBULA
+};
+
+enum GameMode_t {
+	GAME_MODE_TDM
 };
 
 static constexpr int32_t PLAYER_NAME_LENGTH = 25;
@@ -427,6 +440,24 @@ class Game
 		void setGameState(GameState_t newState);
 		void saveGameState();
 
+		GameMode_t getGameMode(){
+			return gameMode;
+		}
+		void setGameMode(GameMode_t newMode){
+			gameMode = newMode;
+		}
+		CurrentMap_t getCurrentMap(){
+			return currentMap;
+		}
+		Town* getCurrentTown(uint32_t guildId);
+		void setCurrentMap(CurrentMap_t newMap){
+			currentMap = newMap;
+		}
+		void initialiseGameMode();
+		void endGameMode();
+		void checkGameState();
+		void setGuildWarStatsToZero(uint32_t id);
+
 		//Events
 		void checkCreatureWalk(uint32_t creatureId);
 		void updateCreatureWalk(uint32_t creatureId);
@@ -525,6 +556,8 @@ class Game
 		void checkDecay();
 		void internalDecayItem(Item* item);
 
+		GameMode_t gameMode = GAME_MODE_TDM;
+		CurrentMap_t currentMap = CURRENT_MAP_THAIS;
 		std::unordered_map<uint32_t, Player*> players;
 		std::unordered_map<std::string, Player*> mappedPlayerNames;
 		std::unordered_map<uint32_t, Player*> mappedPlayerGuids;

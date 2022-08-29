@@ -92,6 +92,7 @@ class ConfigManager
 			DEFAULT_PRIORITY,
 			MAP_AUTHOR,
 			CONFIG_FILE,
+			DEFAULT_GAME_MODE,
 
 			LAST_STRING_CONFIG /* this must be the last one */
 		};
@@ -134,6 +135,7 @@ class ConfigManager
 			VIP_PREMIUM_LIMIT,
 			DEPOT_FREE_LIMIT,
 			DEPOT_PREMIUM_LIMIT,
+			TDM_KILLS_TO_WIN,
 
 			LAST_INTEGER_CONFIG /* this must be the last one */
 		};

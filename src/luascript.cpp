@@ -1425,6 +1425,8 @@ void LuaScriptInterface::registerFunctions()
 	registerEnum(GAME_STATE_SHUTDOWN)
 	registerEnum(GAME_STATE_CLOSING)
 	registerEnum(GAME_STATE_MAINTAIN)
+	registerEnum(GAME_STATE_GAMEMODE_START)
+	registerEnum(GAME_STATE_GAMEMODE_END)
 
 	registerEnum(MESSAGE_STATUS_CONSOLE_BLUE)
 	registerEnum(MESSAGE_STATUS_CONSOLE_RED)

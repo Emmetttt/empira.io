@@ -114,6 +114,22 @@ void Game::setGameState(GameState_t newState)
 			loadAccountStorageValues();
 
 			g_globalEvents->startup();
+			setGameMode(GAME_MODE_TDM);
+			setGameState(GAME_STATE_GAMEMODE_START); // Start the game mode
+			break;
+		}
+
+		case GAME_STATE_GAMEMODE_START: {
+			initialiseGameMode();
+			setGameState(GAME_STATE_NORMAL);
+			break;
+		}
+
+		case GAME_STATE_GAMEMODE_END: {
+			endGameMode();
+			setGameMode(GAME_MODE_TDM);
+			setGameState(GAME_STATE_GAMEMODE_START);
+
 			break;
 		}
 
@@ -157,6 +173,124 @@ void Game::setGameState(GameState_t newState)
 
 		default:
 			break;
+	}
+}
+
+void Game::initialiseGameMode(){
+	int32_t randMap = normal_random(0, 2);
+	switch (randMap){
+		case 0:
+			std::cout << "THAIS" << std::endl;
+			setCurrentMap(CURRENT_MAP_THAIS);
+			break;
+		case 1:
+			std::cout << "EDRON" << std::endl;
+			setCurrentMap(CURRENT_MAP_EDRON);
+			break;
+		case 2:
+			std::cout << "FIBULA" << std::endl;
+			setCurrentMap(CURRENT_MAP_FIBULA);
+			break;
+		// case 2:
+		// 	std::cout << "VENORE" << std::endl;
+		// 	setCurrentMap(CURRENT_MAP_VENORE);
+		// 	break;
+	}
+
+	auto it = players.begin();
+	while (it != players.end()) {
+		Player* player = it->second;
+		Guild* guild = player->getGuild();
+
+		if (guild) {
+			internalTeleport(player, getCurrentTown(guild->getId())->getTemplePosition(), true);
+		}
+		else {
+			internalTeleport(player, getCurrentTown(1)->getTemplePosition(), true);
+		}
+		++it;
+	}
+	// Hard coded to white and black team for now
+	setGuildWarStatsToZero(1);
+	setGuildWarStatsToZero(2);
+	// When we have more game modes, switch on GetGameMode
+}
+
+void Game::setGuildWarStatsToZero(uint32_t id){
+	Guild* guild = getGuild(id);
+	if (!guild) {
+		guild = IOGuild::loadGuild(id);
+		if (guild) {
+			g_game.addGuild(guild);
+		} else {
+			std::cout << "Guild ID " << id << " doesn't exist" << std::endl;
+		}
+	}
+	guild->resetStats();
+}
+
+void Game::endGameMode(){
+	// TODO: persist highest kill streak, person with most kills, all on winning team
+	// Mass kill everyone
+	auto it = players.begin();
+	while (it != players.end()) {
+		Player* player = it->second;
+		Guild* guild = player->getGuild();
+		if (guild){
+			std::string result = "You ";
+			if (guild->getKills() > guild->getDeaths()){
+				result += "won";	
+			}
+			else{
+				result += "lost";
+			}
+
+			player->sendTextMessage(
+				MESSAGE_STATUS_CONSOLE_RED,
+				result + " " + std::to_string(guild->getKills()) + ":" + std::to_string(guild->getDeaths()) + "!"
+			);
+		}
+		++it;
+	}
+}
+
+Town* Game::getCurrentTown(uint32_t guildId) {
+	std::ostringstream ss;
+	switch (g_game.getCurrentMap()) {
+		case CURRENT_MAP_EDRON:
+			ss << "Edron";
+			break;
+		case CURRENT_MAP_THAIS:
+			ss << "Thais";
+			break;
+		case CURRENT_MAP_VENORE:
+			ss << "Venore";
+			break;
+		case CURRENT_MAP_FIBULA:
+			ss << "Fibula";
+			break;
+		default:
+			ss << "Edron";
+			break;
+	}
+	if (guildId % 2 == 0) {
+		ss << "WhiteTeam";
+	}
+	else {
+		ss << "BlackTeam";
+	}
+	std::cout << ss.str() << std::endl;
+
+	return map.towns.getTown(ss.str());
+}
+
+void Game::checkGameState(){
+	uint32_t killLimit = g_config.getNumber(ConfigManager::TDM_KILLS_TO_WIN);
+	if (getGuild(1)->getKills() >= killLimit){
+		setGameState(GAME_STATE_GAMEMODE_END);
+	}
+	if (getGuild(2)->getKills() >= killLimit){
+		setGameState(GAME_STATE_GAMEMODE_END);
 	}
 }
 
@@ -3571,6 +3705,7 @@ void Game::checkCreatures(size_t index)
 		}
 	}
 
+	checkGameState();
 	cleanup();
 }
 
@@ -3816,9 +3951,6 @@ bool Game::combatChangeHealth(Creature* attacker, Creature* target, CombatDamage
 		}
 
 		Player* targetPlayer = target->getPlayer();
-		if (attackerPlayer && targetPlayer && attackerPlayer->getSkull() == SKULL_BLACK && attackerPlayer->getSkullClient(targetPlayer) == SKULL_NONE) {
-			return false;
-		}
 
 		if (damage.origin != ORIGIN_NONE) {
 			const auto& events = target->getCreatureEvents(CREATURE_EVENT_HEALTHCHANGE);
@@ -3894,9 +4026,6 @@ bool Game::combatChangeHealth(Creature* attacker, Creature* target, CombatDamage
 		}
 
 		Player* targetPlayer = target->getPlayer();
-		if (attackerPlayer && targetPlayer && attackerPlayer->getSkull() == SKULL_BLACK && attackerPlayer->getSkullClient(targetPlayer) == SKULL_NONE) {
-			return false;
-		}
 
 		damage.primary.value = std::abs(damage.primary.value);
 		damage.secondary.value = std::abs(damage.secondary.value);
@@ -4110,9 +4239,6 @@ bool Game::combatChangeMana(Creature* attacker, Creature* target, CombatDamage& 
 	if (manaChange > 0) {
 		if (attacker) {
 			const Player* attackerPlayer = attacker->getPlayer();
-			if (attackerPlayer && attackerPlayer->getSkull() == SKULL_BLACK && attackerPlayer->getSkullClient(target) == SKULL_NONE) {
-				return false;
-			}
 		}
 
 		if (damage.origin != ORIGIN_NONE) {
@@ -4143,10 +4269,6 @@ bool Game::combatChangeMana(Creature* attacker, Creature* target, CombatDamage& 
 			attackerPlayer = attacker->getPlayer();
 		} else {
 			attackerPlayer = nullptr;
-		}
-
-		if (attackerPlayer && attackerPlayer->getSkull() == SKULL_BLACK && attackerPlayer->getSkullClient(targetPlayer) == SKULL_NONE) {
-			return false;
 		}
 
 		int32_t manaLoss = std::min<int32_t>(targetPlayer->getMana(), -manaChange);

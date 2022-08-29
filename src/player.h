@@ -34,6 +34,7 @@
 #include "guild.h"
 #include "groups.h"
 #include "town.h"
+#include "string"
 
 #include <bitset>
 
@@ -144,6 +145,12 @@ class Player final : public Creature, public Cylinder
 			if (client) {
 				client->sendFYIBox(message);
 			}
+		}
+
+		bool isDefaultCharacter()
+		{
+			return getName().compare("Knight") || getName().compare("Sorcerer") || getName().compare("Druid") || getName().compare("Paladin");
+			// return getAccount() == 1;  
 		}
 
 		void setGUID(uint32_t guid) {
@@ -616,6 +623,12 @@ class Player final : public Creature, public Cylinder
 
 		LightInfo getCreatureLight() const override;
 
+		int32_t getStreak() const {
+			return streak;
+		}
+		void addStreak(){
+			streak++;
+		}
 		Skulls_t getSkull() const override;
 		Skulls_t getSkullClient(const Creature* creature) const override;
 		int64_t getSkullTicks() const { return skullTicks; }
@@ -1124,6 +1137,7 @@ class Player final : public Creature, public Cylinder
 		Town* town = nullptr;
 		Vocation* vocation = nullptr;
 
+		uint32_t streak = 0;
 		uint32_t inventoryWeight = 0;
 		uint32_t capacity = 40000;
 		uint32_t damageImmunities = 0;
