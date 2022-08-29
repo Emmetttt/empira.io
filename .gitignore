@@ -10,6 +10,7 @@ key.pem
 config.lua
 config.lua.dist
 config.lua.dist.deploy
+data/world/*
 
 # User-specific files
 *.suo
