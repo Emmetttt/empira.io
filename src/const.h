@@ -367,8 +367,7 @@ enum Skulls_t : uint8_t {
 	SKULL_GREEN = 2,
 	SKULL_WHITE = 3,
 	SKULL_RED = 4,
-	SKULL_BLACK = 5,
-	SKULL_ORANGE = 6
+	SKULL_BLACK = 5
 };
 
 enum PartyShields_t : uint8_t {

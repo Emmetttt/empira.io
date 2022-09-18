@@ -101,11 +101,8 @@ void Creature::addStreak()
 		case 2:
 			setSkull(SKULL_YELLOW);
 			break;
-		case 3:
-			setSkull(SKULL_WHITE);
-			break;
 		case 5:
-			setSkull(SKULL_ORANGE);
+			setSkull(SKULL_WHITE);
 			break;
 		case 10:
 			setSkull(SKULL_RED);

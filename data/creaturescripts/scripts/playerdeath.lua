@@ -94,7 +94,7 @@ function addKill(killer, creature)
 	if (killer == nil or creature == nil or not killer:isPlayer()) then
 		return true
 	end
-	killer:addKill()
+	killer:incrementKills()
 
 	if (creature:isPlayer()) then
 		killer:addPlayerKill()

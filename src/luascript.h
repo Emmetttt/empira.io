@@ -889,11 +889,10 @@ class LuaScriptInterface
 		static int luaPlayerGetVocation(lua_State* L);
 		static int luaPlayerSetVocation(lua_State* L);
 		static int luaCreatureGetStreak(lua_State* L);
-		static int luaPlayerAddKill(lua_State* L);
+		static int luaPlayerIncrementKills(lua_State* L);
 		static int luaPlayerAddDeath(lua_State* L);
 		static int luaPlayerAddBotKill(lua_State* L);
 		static int luaPlayerAddPlayerKill(lua_State* L);
-
 		static int luaPlayerGetSex(lua_State* L);
 		static int luaPlayerSetSex(lua_State* L);
 
@@ -902,10 +901,13 @@ class LuaScriptInterface
 		static int luaPlayerSetLevel(lua_State* L);
 
 		static int luaPlayerGetGuild(lua_State* L);
+		static int luaPlayerSetGuild(lua_State* L);
 
 		static int luaPlayerGetGuildLevel(lua_State* L);
+		static int luaPlayerSetGuildLevel(lua_State* L);
 
 		static int luaPlayerGetGuildNick(lua_State* L);
+		static int luaPlayerSetGuildNick(lua_State* L);
 
 		static int luaPlayerGetGroup(lua_State* L);
 		static int luaPlayerSetGroup(lua_State* L);

@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS `accounts` (
   `type` int(11) NOT NULL DEFAULT '1',
   `premdays` int(11) NOT NULL DEFAULT '0',
   `lastday` int(10) unsigned NOT NULL DEFAULT '0',
+  `premium_ends_at` int(10) unsigned NOT NULL DEFAULT '0',
   `email` varchar(255) NOT NULL DEFAULT '',
   `creation` int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
@@ -98,6 +99,14 @@ CREATE TABLE IF NOT EXISTS `account_ban_history` (
   PRIMARY KEY (`id`),
   FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (`banned_by`) REFERENCES `players` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8;
+
+CREATE TABLE IF NOT EXISTS `account_storage` (
+  `account_id` int(11) NOT NULL,
+  `key` int unsigned NOT NULL,
+  `value` int NOT NULL,
+  PRIMARY KEY (`account_id`, `key`),
+  FOREIGN KEY (`account_id`) REFERENCES `accounts`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8;
 
 CREATE TABLE IF NOT EXISTS `ip_bans` (
@@ -273,6 +282,17 @@ CREATE TABLE IF NOT EXISTS `player_deaths` (
   KEY `mostdamage_by` (`mostdamage_by`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8;
 
+CREATE TABLE IF NOT EXISTS `player_depotlockeritems` (
+  `player_id` int NOT NULL,
+  `sid` int NOT NULL COMMENT 'any given range eg 0-100 will be reserved for depot lockers and all > 100 will be then normal items inside depots',
+  `pid` int NOT NULL DEFAULT '0',
+  `itemtype` smallint NOT NULL,
+  `count` smallint NOT NULL DEFAULT '0',
+  `attributes` blob NOT NULL,
+  UNIQUE KEY `player_id_2` (`player_id`, `sid`),
+  FOREIGN KEY (`player_id`) REFERENCES `players`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8;
+
 CREATE TABLE IF NOT EXISTS `player_depotitems` (
   `player_id` int(11) NOT NULL,
   `sid` int(11) NOT NULL COMMENT 'any given range eg 0-100 will be reserved for depot lockers and all > 100 will be then normal items inside depots',
@@ -366,16 +386,16 @@ DELIMITER ;
 -- CREATE ACCOUNTS
 insert into accounts
 values
-(1, 'test', SHA1('test'), 'test', 5, 100, 14, 'test@test.com', 100),
-(2, 'test2', SHA1('test2'), 'test2', 5, 100, 14, 'test@test.com', 100),
-(3, '1', SHA1('1'), '1', 1, 0, 0, 'test@test.com', 100);
+(1, 'test', SHA1('test'), 'test', 5, 100, 14, 14, 'test@test.com', 100),
+(2, 'test2', SHA1('test2'), 'test2', 5, 100, 14, 14, 'test@test.com', 100),
+(3, '1', SHA1('1'), '1', 1, 0, 0, 0, 'test@test.com', 100);
 
 -- CREATE PLAYERS
 insert into players
 (id, name, group_id, account_id, `level`, vocation, health, healthmax, mana, manamax, conditions, cap, maglevel, skill_club, skill_axe, skill_sword, skill_shielding, skill_dist, lookbody, lookfeet, lookhead, looklegs, looktype, lookaddons)
 values
-(1, 'emmett', 3, 1, 999, 5, 9999, 9999, 9999, 9999, '', 9999, 999, 999, 999, 999, 999, 999, 87, 87, 39, 0, 75, 3),
-(2, 'sean', 3, 2, 999, 5, 9999, 9999, 9999, 9999, '', 9999, 999, 999, 999, 999, 999, 999, 87, 87, 39, 0, 75, 3),
+(1, 'emmett', 6, 1, 999, 5, 9999, 9999, 9999, 9999, '', 9999, 999, 999, 999, 999, 999, 999, 87, 87, 39, 0, 75, 3),
+(2, 'sean', 6, 2, 999, 5, 9999, 9999, 9999, 9999, '', 9999, 999, 999, 999, 999, 999, 999, 87, 87, 39, 0, 75, 3),
 (3, 'Knight', 1, 3, 200, 8, 3065, 3065, 1050, 1050, '', 9999, 9, 110, 110, 110, 110, 10, 79, 79, 79, 79, 268, 3),
 (4, 'Sorcerer', 1, 3, 200, 5, 1145, 1145, 5850, 5850, '', 9999, 120, 10, 10, 10, 10, 10, 94, 94, 94, 94, 145, 3),
 (5, 'Druid', 1, 3, 200, 6, 1145, 1145, 5850, 5850, '', 9999, 120, 10, 10, 10, 10, 10, 94, 94, 94, 94, 148, 3),

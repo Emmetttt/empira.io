@@ -54,15 +54,15 @@ local vocationEquipment =
 		Legs		= 2488, -- crown legs
 		Feet		= 2643, -- leather boots
 		Ring		= nil,
-		Ammo		= 18436, -- drill bolt
+		Ammo		= 6529, -- drill bolt
 		Items		= {
 			{ Id = 7589, Count = 100 },  -- smp
 			{ Id = 7589, Count = 100 },  -- smp
 			{ Id = 7589, Count = 100 },  -- smp
 			{ Id = 8472, Count = 100 },  -- gsp
-			{ Id = 18436, Count = 100 }, -- ammo
-			{ Id = 18436, Count = 100 }, -- ammo
-			{ Id = 18436, Count = 100 }, -- ammo
+			{ Id = 6529, Count = 100 }, -- ammo
+			{ Id = 6529, Count = 100 }, -- ammo
+			{ Id = 6529, Count = 100 }, -- ammo
 			{ Id = 2295, Count = 100 }, -- holy missile
 			{ Id = 2273, Count = 100 },  -- uh
 			{ Id = 2293, Count = 50 }    -- mwall

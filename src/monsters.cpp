@@ -354,6 +354,7 @@ bool Monsters::deserializeSpell(const pugi::xml_node& node, spellBlock_t& sb, co
 		} else if (tmpName == "healing") {
 			combat->setParam(COMBAT_PARAM_TYPE, COMBAT_HEALING);
 			combat->setParam(COMBAT_PARAM_AGGRESSIVE, 0);
+			sb.isHealing = true;
 		} else if (tmpName == "manashield") {
 			ConditionType_t conditionType = CONDITION_MANASHIELD;
 			int32_t duration = 10000;

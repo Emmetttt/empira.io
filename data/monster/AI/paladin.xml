@@ -30,10 +30,10 @@
 		</attack>
 	</attacks>
 	<defenses armor="31" defense="0">
-		<defense name="healing" interval="1200" min="550" max="800" healthPercent="80">
+		<defense name="healing" interval="1200" min="550" max="800" healthPercent="80" chance="100">
 			<attribute key="areaEffect" value="blueshimmer" />
 		</defense>
-		<defense name="speed" interval="2000" chance="50" speedchange="200" duration="30000">
+		<defense name="speed" interval="2000" chance="50" speedchange="200" duration="30000" chance="100">
 			<attribute key="areaEffect" value="blueshimmer" />
 		</defense>
 	</defenses>
@@ -47,7 +47,7 @@
 	    <item id="2278" countmax="30" chance="25000" /> <!-- PARA -->
 	    <item id="7589" countmax="50" chance="25000" /> <!-- SMP -->
 	    <item id="8472" countmax="50" chance="25000" /> <!-- GSP-->
-	    <item id="18436" countmax="50" chance="25000" /> <!-- AMMO-->
+	    <item id="6529" countmax="50" chance="25000" /> <!-- AMMO-->
 	    <item id="2295" countmax="50" chance="25000" /> <!-- HOLY -->
 	    <item id="7620" countmax="50" chance="25000" /> <!-- mana -->
 	    <item id="8473" countmax="50" chance="25000" /> <!-- UHP -->

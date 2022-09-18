@@ -25,7 +25,7 @@ function onCastSpell(creature, variant)
 			mwallPos.x = mwallPos.x + 1
 		end
 		local tile = getThingfromPos(mwallPos, false)
-		if tile ~= 0 and not hasProperty(tile.uid, CONST_PROP_BLOCKSOLID) and not isCreature(getTopCreature(pos).uid) then
+		if tile ~= 0 and not hasProperty(tile.uid, CONST_PROP_BLOCKSOLID) and not isCreature(getTopCreature(mwallPos).uid) then
 			Game.createItem(1497, 1, mwallPos)
 		end
 	end

@@ -2274,12 +2274,6 @@ void LuaScriptInterface::registerFunctions()
 	registerMethod("Creature", "setMaxHealth", LuaScriptInterface::luaCreatureSetMaxHealth);
 	registerMethod("Creature", "setHiddenHealth", LuaScriptInterface::luaCreatureSetHiddenHealth);
 	registerMethod("Creature", "getStreak", LuaScriptInterface::luaCreatureGetStreak);
-
-	registerMethod("Player", "addKill", LuaScriptInterface::luaPlayerAddKill);
-	registerMethod("Player", "addDeath", LuaScriptInterface::luaPlayerAddDeath);
-	registerMethod("Player", "addBotKill", LuaScriptInterface::luaPlayerAddBotKill);
-	registerMethod("Player", "addPlayerKill", LuaScriptInterface::luaPlayerAddPlayerKill);
-
 	registerMethod("Creature", "setMovementBlocked", LuaScriptInterface::luaCreatureSetMovementBlocked);
 
 	registerMethod("Creature", "getSkull", LuaScriptInterface::luaCreatureGetSkull);
@@ -2313,6 +2307,10 @@ void LuaScriptInterface::registerFunctions()
 	registerMetaMethod("Player", "__eq", LuaScriptInterface::luaUserdataCompare);
 
 	registerMethod("Player", "isPlayer", LuaScriptInterface::luaPlayerIsPlayer);
+	registerMethod("Player", "incrementKills", LuaScriptInterface::luaPlayerIncrementKills);
+    registerMethod("Player", "addDeath", LuaScriptInterface::luaPlayerAddDeath);
+    registerMethod("Player", "addBotKill", LuaScriptInterface::luaPlayerAddBotKill);
+    registerMethod("Player", "addPlayerKill", LuaScriptInterface::luaPlayerAddPlayerKill);
 
 	registerMethod("Player", "getGuid", LuaScriptInterface::luaPlayerGetGuid);
 	registerMethod("Player", "getIp", LuaScriptInterface::luaPlayerGetIp);
@@ -2372,13 +2370,17 @@ void LuaScriptInterface::registerFunctions()
 
 	registerMethod("Player", "getTown", LuaScriptInterface::luaPlayerGetTown);
 	registerMethod("Player", "setTown", LuaScriptInterface::luaPlayerSetTown);
+
 	registerMethod("Player", "setLevel", LuaScriptInterface::luaPlayerSetLevel);
 
 	registerMethod("Player", "getGuild", LuaScriptInterface::luaPlayerGetGuild);
+	registerMethod("Player", "setGuild", LuaScriptInterface::luaPlayerSetGuild);
 
 	registerMethod("Player", "getGuildLevel", LuaScriptInterface::luaPlayerGetGuildLevel);
+	registerMethod("Player", "setGuildLevel", LuaScriptInterface::luaPlayerSetGuildLevel);
 
 	registerMethod("Player", "getGuildNick", LuaScriptInterface::luaPlayerGetGuildNick);
+	registerMethod("Player", "setGuildNick", LuaScriptInterface::luaPlayerSetGuildNick);
 
 	registerMethod("Player", "getGroup", LuaScriptInterface::luaPlayerGetGroup);
 	registerMethod("Player", "setGroup", LuaScriptInterface::luaPlayerSetGroup);
@@ -8478,14 +8480,29 @@ int LuaScriptInterface::luaPlayerGetItemById(lua_State* L)
 	return 1;
 }
 
-int LuaScriptInterface::luaPlayerAddKill(lua_State* L)
+int LuaScriptInterface::luaPlayerGetVocation(lua_State* L)
 {
-	// player:addKill()
+	// player:getVocation()
 	Player* player = getUserdata<Player>(L, 1);
-	if (player){
-		player->incrementKills();
+	if (player) {
+		pushUserdata<Vocation>(L, player->getVocation());
+		setMetatable(L, -1, "Vocation");
+	} else {
+		lua_pushnil(L);
 	}
+	return 1;
+}
 
+int LuaScriptInterface::luaPlayerIncrementKills(lua_State* L)
+{
+	// player:incrementKills()
+	Player* player = getUserdata<Player>(L, 1);
+	if (player) {
+		player->incrementKills();
+		pushBoolean(L, true);
+	} else {
+		lua_pushnil(L);
+	}
 	return 1;
 }
 
@@ -8519,19 +8536,6 @@ int LuaScriptInterface::luaPlayerAddPlayerKill(lua_State* L)
 		player->incrementPlayerKills();
 	}
 
-	return 1;
-}
-
-int LuaScriptInterface::luaPlayerGetVocation(lua_State* L)
-{
-	// player:getVocation()
-	Player* player = getUserdata<Player>(L, 1);
-	if (player) {
-		pushUserdata<Vocation>(L, player->getVocation());
-		setMetatable(L, -1, "Vocation");
-	} else {
-		lua_pushnil(L);
-	}
 	return 1;
 }
 
@@ -8671,6 +8675,20 @@ int LuaScriptInterface::luaPlayerGetGuild(lua_State* L)
 	return 1;
 }
 
+int LuaScriptInterface::luaPlayerSetGuild(lua_State* L)
+{
+	// player:setGuild(guild)
+	Player* player = getUserdata<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	player->setGuild(getUserdata<Guild>(L, 2));
+	pushBoolean(L, true);
+	return 1;
+}
+
 int LuaScriptInterface::luaPlayerGetGuildLevel(lua_State* L)
 {
 	// player:getGuildLevel()
@@ -8683,12 +8701,47 @@ int LuaScriptInterface::luaPlayerGetGuildLevel(lua_State* L)
 	return 1;
 }
 
+int LuaScriptInterface::luaPlayerSetGuildLevel(lua_State* L)
+{
+	// player:setGuildLevel(level)
+	uint8_t level = getNumber<uint8_t>(L, 2);
+	Player* player = getUserdata<Player>(L, 1);
+	if (!player || !player->getGuild()) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	GuildRank_ptr rank = player->getGuild()->getRankByLevel(level);
+	if (!rank) {
+		pushBoolean(L, false);
+	} else {
+		player->setGuildRank(rank);
+		pushBoolean(L, true);
+	}
+
+	return 1;
+}
+
 int LuaScriptInterface::luaPlayerGetGuildNick(lua_State* L)
 {
 	// player:getGuildNick()
 	Player* player = getUserdata<Player>(L, 1);
 	if (player) {
 		pushString(L, player->getGuildNick());
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int LuaScriptInterface::luaPlayerSetGuildNick(lua_State* L)
+{
+	// player:setGuildNick(nick)
+	const std::string& nick = getString(L, 2);
+	Player* player = getUserdata<Player>(L, 1);
+	if (player) {
+		player->setGuildNick(nick);
+		pushBoolean(L, true);
 	} else {
 		lua_pushnil(L);
 	}
